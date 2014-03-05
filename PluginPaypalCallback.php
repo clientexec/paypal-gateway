@@ -128,7 +128,11 @@ class PluginPaypalCallback extends PluginCallback
 
             //Lets mark the recurring fees as active subscription.
             $cPlugin->setRecurring($tRecurringExclude);
-            $cPlugin->setSubscriptionId($_POST['subscr_id'], $tRecurringExclude);
+
+            //Lets avoid updating invoice instance on this callback because there is another callback very close that is also updating the invoice, causing to lost some data.
+            //The subscription will be instead updated when getting the payment callback.
+            //$cPlugin->setSubscriptionId($_POST['subscr_id'], $tRecurringExclude);
+
             $transaction = "Started paypal subscription. Subscription ID: ".$_POST['subscr_id'];
             $cPlugin->logSubscriptionStarted($transaction, $_POST['subscr_id'].' '.$_POST['subscr_date']);
 
@@ -168,6 +172,22 @@ class PluginPaypalCallback extends PluginCallback
                         $newInvoice = $cPlugin->retrieveLastInvoiceForSubscription($_POST['subscr_id'], $ppTransID);
                         
                         if($newInvoice === false){
+                            $message = "There was a PayPal subscription payment for subscription ".$_POST['subscr_id'].".\n"
+                                      ."However, the system could not find any pending invoice for this subscription. The PayPal transaction id for the payment is ".$ppTransID.".\n"
+                                      ."Please take a look at the customer to confirm if this payment was required.\n"
+                                      ."If the payment was not required, please make sure to login to your PayPal account and refund the payment. If the subscription should no longer apply, please cancel the subscription in your PayPal account.\n"
+                                      ."\n"
+                                      ."Thanks.";
+                            if(isset($customerid)){
+                                // GENERATE TICKET
+                                $tUser = new User($customerid);
+                                $subject = 'Issue with paypal subscription payment';
+                                $cPlugin->createTicket($_POST['subscr_id'], $subject, $message, $tUser);
+                            }else{
+                                // ADD LEVEL 1 LOG
+                                CE_Lib::log(1,$message);
+                            }
+
                             require_once 'modules/admin/models/Error_EventLog.php';
                             $errorLog = Error_EventLog::newInstance(false, 
                                 (isset($customerid))? $customerid : 0,
@@ -185,7 +205,7 @@ class PluginPaypalCallback extends PluginCallback
                 CE_Lib::log(1, 'Error: exiting Paypal callback invocation');
                 exit;
             }
-        }elseif($tIsRecurring && $ppTransType != 'refund' && $ppPayStatus != 'Refunded'){
+        }elseif($cPlugin->IsPaid()==1 && $tIsRecurring && $ppTransType != 'refund' && $ppPayStatus != 'Refunded'){
             //LETS SEARCH THE LATEST SUBSCRIPTION INVOICE, NO MATTER THE STATUS
             $newInvoice = $cPlugin->retrieveLastInvoiceForSubscription($_POST['subscr_id'], $ppTransID, false);
             if($newInvoice === false){
@@ -211,6 +231,9 @@ class PluginPaypalCallback extends PluginCallback
         // Manage the payment
         // TODO check that receiver_email is an email address in your PayPal account
         if($tIsRecurring && $ppTransType != 'refund' && $ppPayStatus != 'Refunded') {
+            //The subscription will be updated when getting the payment callback, to avoid a conflcik with the subscr_signup callback
+            $cPlugin->setSubscriptionId($_POST['subscr_id'], $tRecurringExclude);
+
             // Uncomment to test payment failures through subscription cancellations
             // if ($ppTransType == 'subscr_cancel') $ppTransType = 'subscr_failed';
             switch($ppTransType) {
