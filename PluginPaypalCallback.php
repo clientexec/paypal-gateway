@@ -300,7 +300,7 @@ class PluginPaypalCallback extends PluginCallback
                     if ($newInvoice && $cPlugin->m_Invoice->isPaid()) {
                         $transaction = "Paypal payment of $ppPayAmount was refunded. Original Signup Invoice: $tInvoiceID (OrderID:".$ppTransID.")";
                         $cPlugin->PaymentRefunded($ppPayAmount,$transaction,$ppTransID);
-                    }else{
+                    }elseif(!$cPlugin->m_Invoice->isRefunded()){
                         CE_Lib::log(1,'Related invoice not found or not set as paid on the application, when doing the refund');
                     }
                 }else{
