@@ -81,12 +81,13 @@ class PluginPaypal extends GatewayPlugin
         return $variables;
     }
 
-    /**
-     * implementing abstract method
-     * @return void
-     */
     function credit($params)
     {
+        if ( $params['plugin_paypal_API Username'] == '' || $params['plugin_paypal_API Password'] == '' || $params['plugin_paypal_API Signature'] == '' ) {
+            throw new CE_Exception('You must fill out the API Section of the PayPal configuration to do PayPal refunds.');
+        }
+
+
         $transactionID = $params['invoiceRefundTransactionId'];
         $currency = urlencode($params['userCurrency']);
         $refundType = urlencode('Full');
