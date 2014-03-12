@@ -61,7 +61,22 @@ class PluginPaypal extends GatewayPlugin
                                 "type"          =>"hidden",
                                 "description"   =>/*T*/"Select YES if you want to accept CVV2 for this plugin."/*/T*/,
                                 "value"         =>"0"
-            )
+            ),
+            /*T*/"API Username"/*/T*/ => array (
+                                 "type"          =>"text",
+                                 "description"   =>/*T*/"Please enter your API Username"/*/T*/,
+                                 "value"         =>""
+             ),
+            /*T*/"API Password"/*/T*/ => array (
+                                 "type"          =>"text",
+                                 "description"   =>/*T*/"Please enter your API Password"/*/T*/,
+                                 "value"         =>""
+             ),
+            /*T*/"API Signature"/*/T*/ => array (
+                                 "type"          =>"text",
+                                 "description"   =>/*T*/"Please enter your API Signature"/*/T*/,
+                                 "value"         =>""
+             ),
         );
         return $variables;
     }
@@ -70,7 +85,78 @@ class PluginPaypal extends GatewayPlugin
      * implementing abstract method
      * @return void
      */
-    function credit($params) {}
+    function credit($params)
+    {
+        $transactionID = $params['invoiceRefundTransactionId'];
+        $currency = urlencode($params['userCurrency']);
+        $refundType = urlencode('Full');
+        $memo = urlencode('Refund of Invoice #' . $params['invoiceNumber']);
+
+        $requestString = "&TRANSACTIONID={$transactionID}&REFUNDTYPE={$refundType}&CURRENCYCODE={$currency}&NOTE={$memo}";
+
+        $response = $this->sendRequest('RefundTransaction', $requestString, $params);
+        if("SUCCESS" == strtoupper($response["ACK"]) || "SUCCESSWITHWARNING" == strtoupper($response["ACK"])) {
+            return array('AMOUNT' => $params['invoiceTotal']);
+        } else {
+            CE_Lib::log(4, 'Error with PayPal Refund: ' . print_r($response, true));
+            return 'Error with PayPal Refund.';
+        }
+    }
+
+    private function sendRequest($methodName, $requestString, $params)
+    {
+        // Set up your API credentials, PayPal end point, and API version.
+        $API_UserName = urlencode($params['plugin_paypal_API Username']);
+        $API_Password = urlencode($params['plugin_paypal_API Password']);
+        $API_Signature = urlencode($params['plugin_paypal_API Signature']);
+        $API_Endpoint = "https://api-3t.paypal.com/nvp";
+        if ( $params['plugin_paypal_Use PayPal Sandbox'] == '1' ) {
+            $API_Endpoint = "https://api-3t.sandbox.paypal.com/nvp";
+        }
+        $version = urlencode('51.0');
+
+        // Set the curl parameters.
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $API_Endpoint);
+        curl_setopt($ch, CURLOPT_VERBOSE, 1);
+
+        // Turn off the server and peer verification (TrustManager Concept).
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, FALSE);
+
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_POST, 1);
+
+        // Set the API operation, version, and API signature in the request.
+        $nvpreq = "METHOD={$methodName}&VERSION={$version}&PWD={$API_Password}&USER={$API_UserName}&SIGNATURE={$API_Signature}{$requestString}";
+
+        // Set the request as a POST FIELD for curl.
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $nvpreq);
+
+        // Get response from the server.
+        $httpResponse = curl_exec($ch);
+
+        if(!$httpResponse) {
+            throw new CE_Exception("PayPal $methodName failed: ".curl_error($ch).'('.curl_errno($ch).')');
+        }
+
+        // Extract the response details.
+        $httpResponseAr = explode("&", $httpResponse);
+
+        $httpParsedResponseAr = array();
+        foreach ($httpResponseAr as $i => $value) {
+            $tmpAr = explode("=", $value);
+            if(sizeof($tmpAr) > 1) {
+                $httpParsedResponseAr[$tmpAr[0]] = $tmpAr[1];
+            }
+        }
+
+        if((0 == sizeof($httpParsedResponseAr)) || !array_key_exists('ACK', $httpParsedResponseAr)) {
+            throw new CE_Exception("Invalid HTTP Response for POST request($nvpreq) to $API_Endpoint.");
+        }
+
+        return $httpParsedResponseAr;
+    }
 
     function singlepayment($params, $test = false)
     {
