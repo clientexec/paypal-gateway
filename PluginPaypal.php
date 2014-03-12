@@ -99,8 +99,9 @@ class PluginPaypal extends GatewayPlugin
         if("SUCCESS" == strtoupper($response["ACK"]) || "SUCCESSWITHWARNING" == strtoupper($response["ACK"])) {
             return array('AMOUNT' => $params['invoiceTotal']);
         } else {
+            $errorMessage = urldecode($response['L_LONGMESSAGE0']);
             CE_Lib::log(4, 'Error with PayPal Refund: ' . print_r($response, true));
-            return 'Error with PayPal Refund.';
+            return 'Error with PayPal Refund: ' . $errorMessage;
         }
     }
 
