@@ -231,19 +231,20 @@ class PluginPaypalCallback extends PluginCallback
         // Manage the payment
         // TODO check that receiver_email is an email address in your PayPal account
         if($tIsRecurring && $ppTransType != 'refund' && $ppPayStatus != 'Refunded') {
-            //The subscription will be updated when getting the payment callback, to avoid a conflcik with the subscr_signup callback
-            $cPlugin->setSubscriptionId($_POST['subscr_id'], $tRecurringExclude);
-
             // Uncomment to test payment failures through subscription cancellations
             // if ($ppTransType == 'subscr_cancel') $ppTransType = 'subscr_failed';
             switch($ppTransType) {
                 case 'subscr_payment':  // Subscription payment received
                     switch($ppPayStatus) {
                         case "Completed": // The payment has been completed, and the funds have been added successfully to your account balance.
+                            //The subscription will be updated when getting the payment callback, to avoid a conflcik with the subscr_signup callback
+                            $cPlugin->setSubscriptionId($_POST['subscr_id'], $tRecurringExclude);
                             $transaction = "Paypal payment of $ppPayAmount was accepted. Original Signup Invoice: $tInvoiceID (OrderID:".$ppTransID.")";
                             $cPlugin->PaymentAccepted($ppPayAmount,$transaction,$ppTransID, $testing);
                         break;
                         case "Pending": // The payment is pending. See pending_reason for more information.
+                            //The subscription will be updated when getting the payment callback, to avoid a conflcik with the subscr_signup callback
+                            $cPlugin->setSubscriptionId($_POST['subscr_id'], $tRecurringExclude);
                             $transaction = "Paypal payment of $ppPayAmount was marked 'pending' by Paypal. Reason: ".$_POST['pending_reason'].". Original Signup Invoice: $tInvoiceID (OrderID:".$ppTransID.")";
                             $cPlugin->PaymentPending($transaction,$ppTransID);
                         break;
