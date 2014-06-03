@@ -16,65 +16,65 @@ class PluginPaypal extends GatewayPlugin
         */
 
         $variables = array (
-            /*T*/"Plugin Name"/*/T*/ => array (
+            lang("Plugin Name") => array (
                                 "type"          =>"hidden",
-                                "description"   =>/*T*/"How CE sees this plugin (not to be confused with the Signup Name)"/*/T*/,
-                                "value"         =>/*T*/"Paypal"/*/T*/
+                                "description"   =>lang("How CE sees this plugin (not to be confused with the Signup Name)"),
+                                "value"         =>lang("Paypal")
                                 ),
-            /*T*/"User ID"/*/T*/ => array (
+            lang("User ID") => array (
                                  "type"          =>"text",
-                                 "description"   =>/*T*/"The email used to identify you to PayPal.<br>NOTE: The email is required if you have selected PayPal as a payment gateway for any of your clients."/*/T*/,
+                                 "description"   =>lang("The email used to identify you to PayPal.<br>NOTE: The email is required if you have selected PayPal as a payment gateway for any of your clients."),
                                  "value"         =>""
                                  ),
-             /*T*/"Signup Name"/*/T*/ => array (
+             lang("Signup Name") => array (
                                  "type"          =>"text",
-                                 "description"   =>/*T*/"Select the name to display in the signup process for this payment type. Example: eCheck or Credit Card."/*/T*/,
+                                 "description"   =>lang("Select the name to display in the signup process for this payment type. Example: eCheck or Credit Card."),
                                  "value"         =>"Credit Card, eCheck, or Paypal"
                                  ),
-            /*T*/"Generate Invoices After Callback Notification"/*/T*/ => array (
+            lang("Generate Invoices After Callback Notification") => array (
                                 "type"          =>"hidden",
-                                "description"   =>/*T*/"Select YES if you prefer CE to only generate invoices upon notification of payment via the callback supported by this processor.  Setting to NO will generate invoices normally but require you to manually mark them paid as you receive notification from processor."/*/T*/,
+                                "description"   =>lang("Select YES if you prefer CE to only generate invoices upon notification of payment via the callback supported by this processor.  Setting to NO will generate invoices normally but require you to manually mark them paid as you receive notification from processor."),
                                 "value"         =>"1"
                                 ),
-            /*T*/"Invoice After Signup"/*/T*/ => array (
+            lang("Invoice After Signup") => array (
                                 "type"          =>"yesno",
-                                "description"   =>/*T*/"Select YES if you want an invoice sent to the customer after signup is complete."/*/T*/,
+                                "description"   =>lang("Select YES if you want an invoice sent to the customer after signup is complete."),
                                 "value"         =>"1"
                                 ),
-            /*T*/"Use PayPal Sandbox"/*/T*/ => array(
+            lang("Use PayPal Sandbox") => array(
                                 "type"          =>"yesno",
-                                "description"   =>/*T*/"Select YES if you want to use Paypal's testing server, so no actual monetary transactions are made. You need to have a developer account with Paypal, and be logged-in in the developer panel in another browser window for the transaction to be successful."/*/T*/,
+                                "description"   =>lang("Select YES if you want to use Paypal's testing server, so no actual monetary transactions are made. You need to have a developer account with Paypal, and be logged-in in the developer panel in another browser window for the transaction to be successful."),
                                 "value"         =>"0"
             ),
-            /*T*/'Paypal Subscriptions Option'/*/T*/=> array(
+            lang('Paypal Subscriptions Option')=> array(
                                 'type'          => 'options',
-                                'description'   => /*T*/'Determine if you are going to use subscriptions for recurring charges.  Subscriptions are started after the initial payment is completed by customer.'/*/T*/,
-                                'options'       => array(0 => /*T*/ 'Use subscriptions' /*/T*/,
-                                                         1 => /*T*/'Do not use subscriptions'/*/T*/),
+                                'description'   => lang('Determine if you are going to use subscriptions for recurring charges.  Subscriptions are started after the initial payment is completed by customer.'),
+                                'options'       => array(0 => lang( 'Use subscriptions' ),
+                                                         1 => lang('Do not use subscriptions')),
             ),
-            /*T*/"Separate Taxes"/*/T*/ => array (
+            lang("Separate Taxes") => array (
                                 "type"          =>"yesno",
-                                "description"   =>/*T*/"Select YES if you want to pass amount and taxes separated to this payment processor."/*/T*/,
+                                "description"   =>lang("Select YES if you want to pass amount and taxes separated to this payment processor."),
                                 "value"         =>"0"
             ),
-           /*T*/"Check CVV2"/*/T*/ => array (
+           lang("Check CVV2") => array (
                                 "type"          =>"hidden",
-                                "description"   =>/*T*/"Select YES if you want to accept CVV2 for this plugin."/*/T*/,
+                                "description"   =>lang("Select YES if you want to accept CVV2 for this plugin."),
                                 "value"         =>"0"
             ),
-            /*T*/"API Username"/*/T*/ => array (
+            lang("API Username") => array (
                                  "type"          =>"text",
-                                 "description"   =>/*T*/"Please enter your API Username"/*/T*/,
+                                 "description"   =>lang("Please enter your API Username"),
                                  "value"         =>""
              ),
-            /*T*/"API Password"/*/T*/ => array (
+            lang("API Password") => array (
                                  "type"          =>"text",
-                                 "description"   =>/*T*/"Please enter your API Password"/*/T*/,
+                                 "description"   =>lang("Please enter your API Password"),
                                  "value"         =>""
              ),
-            /*T*/"API Signature"/*/T*/ => array (
+            lang("API Signature") => array (
                                  "type"          =>"text",
-                                 "description"   =>/*T*/"Please enter your API Signature"/*/T*/,
+                                 "description"   =>lang("Please enter your API Signature"),
                                  "value"         =>""
              ),
         );
