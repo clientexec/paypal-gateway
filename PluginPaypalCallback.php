@@ -1,5 +1,6 @@
 <?php
 require_once 'modules/admin/models/PluginCallback.php';
+require_once 'modules/admin/models/StatusAliasGateway.php' ;
 require_once 'modules/billing/models/class.gateway.plugin.php';
 
 class PluginPaypalCallback extends PluginCallback
@@ -261,7 +262,7 @@ class PluginPaypalCallback extends PluginCallback
                 case 'subscr_cancel': // Subscription canceled
                     CE_Lib::log(4, "Subscription has been cancelled on Paypal's side.");
                     $tUser = new User($cPlugin->m_Invoice->m_UserID);
-                    if ($tUser->getStatus() == USER_STATUS_CANCELLED) {
+                    if (in_array($tUser->getStatus(), StatusAliasGateway::getInstance($this->user)->getUserStatusIdsFor(USER_STATUS_CANCELLED))) {
                         CE_Lib::log(4, 'User is already cancelled. Ignore callback.');
                         exit;
                     }
