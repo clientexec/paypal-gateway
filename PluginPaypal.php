@@ -251,6 +251,9 @@ class PluginPaypal extends GatewayPlugin
                 // special case: about to pay an invoice with a future due date
                 // First we normalize the timestamps to midnight
                 $dueDate = mktime(0, 0, 0, date('m', $params['invoiceDueDate']), date('d', $params['invoiceDueDate']), date('Y', $params['invoiceDueDate']));
+
+                //Code commented to avoid a bad pricing issue
+                /*
                 if ($todayDate < $dueDate) {
                     if ($billingCycle >= 12) { // 12 months == 1 year, 24 == 2 years
                         // In this case we can't create an initial trial period so that following payments are made on the due date,
@@ -265,9 +268,14 @@ class PluginPaypal extends GatewayPlugin
                         $initialPeriodUnits = 'D';
                     }
                 } else {
+                */
+
                     $initialPeriodLength = $billingCycle;
                     $initialPeriodUnits = 'M';
+
+                /*
                 }
+                */
             }
 
             // Special case: using prorating and including following payment with billing cycles greater than monthly
