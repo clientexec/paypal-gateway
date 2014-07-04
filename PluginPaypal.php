@@ -269,10 +269,8 @@ class PluginPaypal extends GatewayPlugin
                     }
                 } else {
                 */
-
                     $initialPeriodLength = $billingCycle;
                     $initialPeriodUnits = 'M';
-
                 /*
                 }
                 */
