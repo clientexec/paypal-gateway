@@ -351,6 +351,7 @@ class PluginPaypal extends GatewayPlugin
         $strRet .= "<INPUT type=hidden name=\"zip\" value=\"".$params["userZipcode"]."\">\n";
         $strRet .= "<INPUT type=hidden name=\"no_shipping\" value=\"1\">\n";
         $strRet .= "<INPUT type=hidden name=\"no_note\" value=\"1\">\n";
+        $strRet .= "<INPUT type=hidden name=\"bn\" value=\"Clientexec_SP\">\n";
         $strRet .= "<INPUT type=hidden name=\"currency_code\" value=\"".$params["currencytype"]."\">\n";
         //die($strRet);
         $strRet .= "<script language=\"JavaScript\">\n";
