@@ -264,14 +264,13 @@ class PluginPaypalCallback extends PluginCallback
                     $tUser = new User($cPlugin->m_Invoice->m_UserID);
                     if (in_array($tUser->getStatus(), StatusAliasGateway::getInstance($this->user)->getUserStatusIdsFor(USER_STATUS_CANCELLED))) {
                         CE_Lib::log(4, 'User is already cancelled. Ignore callback.');
-                        exit;
+                    }else{
+                        $subject = 'Gateway recurring payment cancelled';
+                        $message = "Recurring payment for invoice $tInvoiceID, corresponding to package \"{$_POST['item_name']}\" has been cancelled by customer.";
+                        // If createTicket returns false it's because this transaction has already been done
+                        // Use subscr_id because txn_id is not sent on cancellation IPNs from Paypal
+                        if (!$cPlugin->createTicket($_POST['subscr_id'], $subject, $message, $tUser)) exit;
                     }
-                    $subject = 'Gateway recurring payment cancelled';
-                    $message = "Recurring payment for invoice $tInvoiceID, corresponding to package \"{$_POST['item_name']}\" has been cancelled by customer.";
-                    // If createTicket returns false it's because this transaction has already been done
-                    // Use subscr_id because txn_id is not sent on cancellation IPNs from Paypal
-                    if (!$cPlugin->createTicket($_POST['subscr_id'], $subject, $message, $tUser)) exit;
-
                     $transaction = "Paypal subscription cancelled by customer. Original Signup Invoice: $tInvoiceID";
                     $cPlugin->resetRecurring($transaction, $_POST['subscr_id'], $tRecurringExclude);
                     break;
