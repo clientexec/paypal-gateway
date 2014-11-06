@@ -87,37 +87,78 @@ class PluginPaypalCallback extends PluginCallback
         // Create Plugin class object to interact with CE.
         $cPlugin = new Plugin($tInvoiceID, 'paypal', $this->user);
 
-        // Comfirm the callback before assuming anything
-        CE_Lib::log(4, "Requesting callback confirmation; sending request: $paypal_url?$req");
-        try{
-            $res = $this->_requestConfirmation($paypal_url, $header.$req, $testing);
-        }catch (Exception $e){
-            $customerid = $cPlugin->m_Invoice->getUserID();
 
-            require_once 'modules/admin/models/Error_EventLog.php';
-            $errorLog = Error_EventLog::newInstance(false, 
-                (isset($customerid))? $customerid : 0,
-                $tInvoiceID,
-                ERROR_EVENTLOG_PAYPAL_REQUEST_CONFIRMATION,
-                NE_EVENTLOG_USER_SYSTEM,
-                serialize($this->_utf8EncodePaypalCallback($_POST))
-            );
-            $errorLog->save();
+        // Comfirm the callback before assuming anything
+        $exit = false;
+        $maxRetries = 3;
+        for($retry = 1; $retry <= $maxRetries; $retry++){
+            $exit = false;
+            CE_Lib::log(4, "Requesting callback confirmation (attempt $retry of $maxRetries); sending request: $paypal_url?$req");
+            try{
+                $res = $this->_requestConfirmation($paypal_url, $header.$req, $testing);
+            }catch (Exception $e){
+                $customerid = $cPlugin->m_Invoice->getUserID();
+
+                require_once 'modules/admin/models/Error_EventLog.php';
+                $errorLog = Error_EventLog::newInstance(false, 
+                    (isset($customerid))? $customerid : 0,
+                    $tInvoiceID,
+                    ERROR_EVENTLOG_PAYPAL_REQUEST_CONFIRMATION,
+                    NE_EVENTLOG_USER_SYSTEM,
+                    serialize($this->_utf8EncodePaypalCallback($_POST))
+                );
+                $errorLog->save();
+
+                //exit;
+                $exit = true;
+                continue;
+            }
+            
+            CE_Lib::log(4,"Request Confirmation Returned (attempt $retry of $maxRetries): ".$res);
+            if (strpos ($res, "VERIFIED") !== false) {
+                CE_Lib::log(4, "Callback has been verified successfully");
+                break;
+            }elseif (strpos ($res, "INVALID") !== false) {
+                CE_Lib::log(4, "Callback verification returned 'INVALID'");
+                $transaction = "Paypal IPN returned INVALID to Confirmation.";
+                $cPlugin->PaymentRejected($transaction);
+
+                //return;
+                $exit = true;
+                break;
+            }else {
+                CE_Lib::log(1, "Callback not returning verification code of 'VERIFIED' or 'INVALID' (attempt $retry of $maxRetries). Original Paypal callback details: ".print_r($_POST, true));
+
+                //return;
+                $exit = true;
+            }
+        }
+        if($exit){
+            $customerid = $cPlugin->m_Invoice->getUserID();
+            $message = "There was a PayPal Callback not returning verification code of 'VERIFIED' or 'INVALID'. Attempted verification $maxRetries time(s).\n"
+                      ."\n"
+                      ."Original Paypal callback details:\n"
+                      .print_r($_POST, true)."\n"
+                      ."\n"
+                      ."When trying to verify, Paypal returned:\n"
+                      .$res."\n"
+                      ."\n"
+                      ."Please make sure to login to your PayPal account and verify the transaction by yourself. Also, you probably will need to take some manual actions over an invoice.\n"
+                      ."\n"
+                      ."Thanks.";
+            if(isset($customerid)){
+                // GENERATE TICKET
+                $tUser = new User($customerid);
+                $subject = 'Issue when verifying paypal callback';
+                $cPlugin->createTicket(false, $subject, $message, $tUser);
+            }else{
+                // ADD LEVEL 1 LOG
+                CE_Lib::log(1,$message);
+            }
             exit;
         }
-        CE_Lib::log(4,"Request Confirmation Returned: ".$res);
-        if (strpos ($res, "VERIFIED") !== false) {
-            CE_Lib::log(4, "Callback has been verified successfully");
-        }elseif (strpos ($res, "INVALID") !== false) {
-            CE_Lib::log(4, "Callback verification returned 'INVALID'");
-            $transaction = "Paypal IPN returned INVALID to Confirmation.";
-            $cPlugin->PaymentRejected($transaction);
-            return;
-        }else {
-            CE_Lib::log(1, "Callback not returning verification code of 'VERIFIED' or 'INVALID'. Original Paypal callback details: ".print_r($_POST, true));
-            return;
-        }
         // Comfirm the callback before assuming anything
+
 
         if ($ppTransType == 'subscr_signup') {  // Subscription started
             // Here we should update a field in the first invoice with the subscription date:
