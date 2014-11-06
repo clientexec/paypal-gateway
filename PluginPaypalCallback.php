@@ -90,9 +90,11 @@ class PluginPaypalCallback extends PluginCallback
 
         // Comfirm the callback before assuming anything
         $exit = false;
+        $createTicket = false;
         $maxRetries = 3;
         for($retry = 1; $retry <= $maxRetries; $retry++){
             $exit = false;
+            $createTicket = false;
             CE_Lib::log(4, "Requesting callback confirmation (attempt $retry of $maxRetries); sending request: $paypal_url?$req");
             try{
                 $res = $this->_requestConfirmation($paypal_url, $header.$req, $testing);
@@ -130,30 +132,33 @@ class PluginPaypalCallback extends PluginCallback
                 CE_Lib::log(1, "Callback not returning verification code of 'VERIFIED' or 'INVALID' (attempt $retry of $maxRetries). Original Paypal callback details: ".print_r($_POST, true));
 
                 //return;
+                $createTicket = true;
                 $exit = true;
             }
         }
         if($exit){
-            $customerid = $cPlugin->m_Invoice->getUserID();
-            $message = "There was a PayPal Callback not returning verification code of 'VERIFIED' or 'INVALID'. Attempted verification $maxRetries time(s).\n"
-                      ."\n"
-                      ."Original Paypal callback details:\n"
-                      .print_r($_POST, true)."\n"
-                      ."\n"
-                      ."When trying to verify, Paypal returned:\n"
-                      .$res."\n"
-                      ."\n"
-                      ."Please make sure to login to your PayPal account and verify the transaction by yourself. Also, you probably will need to take some manual actions over an invoice.\n"
-                      ."\n"
-                      ."Thanks.";
-            if(isset($customerid)){
-                // GENERATE TICKET
-                $tUser = new User($customerid);
-                $subject = 'Issue when verifying paypal callback';
-                $cPlugin->createTicket(false, $subject, $message, $tUser);
-            }else{
-                // ADD LEVEL 1 LOG
-                CE_Lib::log(1,$message);
+            if($createTicket){
+                $customerid = $cPlugin->m_Invoice->getUserID();
+                $message = "There was a PayPal Callback not returning verification code of 'VERIFIED' or 'INVALID'. Attempted verification $maxRetries time(s).\n"
+                          ."\n"
+                          ."Original Paypal callback details:\n"
+                          .print_r($_POST, true)."\n"
+                          ."\n"
+                          ."When trying to verify, Paypal returned:\n"
+                          .$res."\n"
+                          ."\n"
+                          ."Please make sure to login to your PayPal account and verify the transaction by yourself. Also, you probably will need to take some manual actions over an invoice.\n"
+                          ."\n"
+                          ."Thanks.";
+                if(isset($customerid)){
+                    // GENERATE TICKET
+                    $tUser = new User($customerid);
+                    $subject = 'Issue when verifying paypal callback';
+                    $cPlugin->createTicket(false, $subject, $message, $tUser);
+                }else{
+                    // ADD LEVEL 1 LOG
+                    CE_Lib::log(1,$message);
+                }
             }
             exit;
         }
