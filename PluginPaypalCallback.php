@@ -213,7 +213,7 @@ class PluginPaypalCallback extends PluginCallback
                         //try to generate the customer invoices and search again
                         require_once 'modules/billing/models/BillingGateway.php';
                         $billingGateway = new BillingGateway($this->user);
-                        $billingGateway->processCustomerBilling($customerid);
+                        $billingGateway->processCustomerBilling($customerid, $_POST['subscr_id']);
                         
                         //Search for existing invoice, unpaid and with same subscription id
                         $newInvoice = $cPlugin->retrieveLastInvoiceForSubscription($_POST['subscr_id'], $ppTransID);
