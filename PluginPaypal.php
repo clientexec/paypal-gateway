@@ -285,7 +285,7 @@ class PluginPaypal extends GatewayPlugin
             if ($initialPeriodLength <= 90) {
                 $subscriptionsUsed = true;
 
-                $strRet .= "<INPUT type=hidden name=\"cmd\" value=\"_xclick-subscriptions\">\n";
+                $strRet .= "<input type=hidden name=\"cmd\" value=\"_xclick-subscriptions\">\n";
 
                 // Trial Period 1 used for initial signup payment.
                 // So we can include the total cost of Domain + Hosting + Setup.
@@ -318,11 +318,11 @@ class PluginPaypal extends GatewayPlugin
             if ($params['plugin_paypal_Separate Taxes'] == '1') {
                 $amount = $currency->format($params['currencytype'], $params['invoiceRawAmount'] , false);
                 $tax = $currency->format($params['currencytype'], $params['invoiceTaxes'] , false);
-                $strRet .= "<INPUT type=hidden name=\"tax\" value=\"$tax\">\n";
+                $strRet .= "<input type=hidden name=\"tax\" value=\"$tax\">\n";
             }else{
                 $amount = $currency->format($params['currencytype'], $params['invoiceTotal'] , false);
             }
-            $strRet .= "<INPUT type=hidden name=\"amount\" value=\"$amount\">\n";
+            $strRet .= "<input type=hidden name=\"amount\" value=\"$amount\">\n";
         }
 
         //Need to check to see if user is coming from signup
@@ -342,20 +342,28 @@ class PluginPaypal extends GatewayPlugin
         }
 
         $strRet .= "<input type=hidden name=\"custom\" value=\"".$params['invoiceNumber']."_".$params['usingRecurringPlugin']."_".$params["plugin_paypal_Generate Invoices After Callback Notification"].$tRecurringExclude."\">\n";
-        $strRet .= "<INPUT type=hidden name=\"return\" value=\"".$returnURL."\">\n";
-		$strRet .= "<INPUT type=hidden name=\"rm\" value=\"2\">\n";
+        $strRet .= "<input type=hidden name=\"return\" value=\"".$returnURL."\">\n";
+        $strRet .= "<input type=hidden name=\"rm\" value=\"2\">\n";
         $strRet .= "<input type=hidden name=\"cancel_return\" value=\"".$returnURL_Cancel."\">\n";
         $strRet .= "<input type=hidden name=\"notify_url\" value=\"".$stat_url."\">\n";
-        $strRet .= "<INPUT type=hidden name=\"first_name\" value=\"".$params["userFirstName"]."\">\n";
-        $strRet .= "<INPUT type=hidden name=\"last_name\" value=\"".$params["userLastName"]."\">\n";
-        $strRet .= "<INPUT type=hidden name=\"address1\" value=\"".$params["userAddress"]."\">\n";
-        $strRet .= "<INPUT type=hidden name=\"city\" value=\"".$params["userCity"]."\">\n";
-        $strRet .= "<INPUT type=hidden name=\"state\" value=\"".$params["userState"]."\">\n";
-        $strRet .= "<INPUT type=hidden name=\"zip\" value=\"".$params["userZipcode"]."\">\n";
-        $strRet .= "<INPUT type=hidden name=\"no_shipping\" value=\"1\">\n";
-        $strRet .= "<INPUT type=hidden name=\"no_note\" value=\"1\">\n";
-        $strRet .= "<INPUT type=hidden name=\"bn\" value=\"Clientexec_SP\">\n";
-        $strRet .= "<INPUT type=hidden name=\"currency_code\" value=\"".$params["currencytype"]."\">\n";
+        $strRet .= "<input type=hidden name=\"first_name\" value=\"".$params["userFirstName"]."\">\n";
+        $strRet .= "<input type=hidden name=\"last_name\" value=\"".$params["userLastName"]."\">\n";
+        $strRet .= "<input type=hidden name=\"address1\" value=\"".$params["userAddress"]."\">\n";
+        $strRet .= "<input type=hidden name=\"city\" value=\"".$params["userCity"]."\">\n";
+        $strRet .= "<input type=hidden name=\"state\" value=\"".$params["userState"]."\">\n";
+        $strRet .= "<input type=hidden name=\"zip\" value=\"".$params["userZipcode"]."\">\n";
+        $strRet .= "<input type=hidden name=\"no_shipping\" value=\"1\">\n";
+        $strRet .= "<input type=hidden name=\"no_note\" value=\"1\">\n";
+        $strRet .= "<input type=hidden name=\"bn\" value=\"Clientexec_SP\">\n";
+        $strRet .= "<input type=hidden name=\"currency_code\" value=\"".$params["currencytype"]."\">\n";
+        $strRet .= "<input type=hidden name=\"email\" value=\"".$params["userEmail"]."\">\n";
+
+        //The next 2 fields are to get the phone number on the form for new customers. It was not working with just one of them
+        $strRet .= "<input type=hidden name=\"night_phone_a\" value=\""."\">\n";
+        $strRet .= "<input type=hidden name=\"night_phone_b\" value=\"".$params["userPhone"]."\">\n";
+        //The previous 2 fields were to get the phone number on the form for new customers. It was not working with just one of them
+
+        $strRet .= "<input type=hidden name=\"country\" value=\"".$params["userCountry"]."\">\n";
         //die($strRet);
         $strRet .= "<script language=\"JavaScript\">\n";
         $strRet .= "document.forms['frmPayPal'].submit();\n";
