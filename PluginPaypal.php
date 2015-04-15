@@ -77,6 +77,11 @@ class PluginPaypal extends GatewayPlugin
                                  "description"   =>lang("Please enter your API Signature"),
                                  "value"         =>""
              ),
+             lang("Page Style") => array (
+                                 "type"          =>"text",
+                                 "description"   =>lang("Please enter the name of the page style you would like displayed"),
+                                 "value"         =>""
+             ),
         );
         return $variables;
     }
@@ -194,7 +199,7 @@ class PluginPaypal extends GatewayPlugin
 
         // don't use subscriptions if it's a package with a setup fee and no package fee
         //if($params['usingRecurringPlugin'] == '1' && !($params['invoiceSetup'] && !$params['invoicePackageUnproratedFee']))
-        
+
         // use subscriptions only if has package fee
         if($params['usingRecurringPlugin'] == '1' && $params['invoicePackageUnproratedFee'])
         {
@@ -356,6 +361,7 @@ class PluginPaypal extends GatewayPlugin
         $strRet .= "<input type=hidden name=\"no_note\" value=\"1\">\n";
         $strRet .= "<input type=hidden name=\"bn\" value=\"Clientexec_SP\">\n";
         $strRet .= "<input type=hidden name=\"currency_code\" value=\"".$params["currencytype"]."\">\n";
+        $strRet .= "<input type=hidden name=\"page_style\" value=\"".$params["plugin_paypal_Page Style"]."\">\n";
         $strRet .= "<input type=hidden name=\"email\" value=\"".$params["userEmail"]."\">\n";
 
         //The next 2 fields are to get the phone number on the form for new customers. It was not working with just one of them
