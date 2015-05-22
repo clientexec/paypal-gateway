@@ -318,7 +318,7 @@ class PluginPaypalCallback extends PluginCallback
                         if (!$cPlugin->createTicket($_POST['subscr_id'], $subject, $message, $tUser)) exit;
                     }
                     $transaction = "Paypal subscription cancelled by customer. Original Signup Invoice: $tInvoiceID";
-                    $cPlugin->resetRecurring($transaction, $_POST['subscr_id'], $tRecurringExclude);
+                    $cPlugin->resetRecurring($transaction, $_POST['subscr_id'], $tRecurringExclude, $tInvoiceID);
                     break;
                 case 'subscr_failed': // Subscription signup failed
                     // this is caused by lack of funds for example
