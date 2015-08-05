@@ -277,8 +277,13 @@ class PluginPaypal extends GatewayPlugin
                     }
                 } else {
                 */
-                    $initialPeriodLength = $billingCycle;
-                    $initialPeriodUnits = 'M';
+                    if($billingCycle >= 12){
+                        $initialPeriodLength = round($billingCycle / 12);
+                        $initialPeriodUnits = 'Y';
+                    }else{
+                        $initialPeriodLength = $billingCycle;
+                        $initialPeriodUnits = 'M';
+                    }
                 /*
                 }
                 */
@@ -292,6 +297,9 @@ class PluginPaypal extends GatewayPlugin
 
                 $strRet .= "<input type=hidden name=\"cmd\" value=\"_xclick-subscriptions\">\n";
 
+                //Paypal currently only support subscriptions up to 5 Years
+                //https://developer.paypal.com/docs/classic/paypal-payments-standard/integration-guide/Appx_websitestandard_htmlvariables/
+
                 // Trial Period 1 used for initial signup payment.
                 // So we can include the total cost of Domain + Hosting + Setup.
                 if ($initialTrial) {
@@ -302,8 +310,13 @@ class PluginPaypal extends GatewayPlugin
 
                 // Normal Billing cycle information including Recurring Payment (only the cost of service).
                 $strRet .= "<input type=hidden name=\"a3\" value=\"".$tRecurringTotal."\">\n";
-                $strRet .= "<input type=hidden name=\"p3\" value=\"$billingCycle\">\n";
-                $strRet .= "<input type=hidden name=\"t3\" value=\"M\">\n";
+                if($billingCycle >= 12){
+                    $strRet .= "<input type=hidden name=\"p3\" value=\"".round($billingCycle / 12)."\">\n";
+                    $strRet .= "<input type=hidden name=\"t3\" value=\"Y\">\n";
+                }else{
+                    $strRet .= "<input type=hidden name=\"p3\" value=\"$billingCycle\">\n";
+                    $strRet .= "<input type=hidden name=\"t3\" value=\"M\">\n";
+                }
 
                 // Recurring and retry options. Set retry until Paypal's system gives up. And set recurring indefinately.)
                 $strRet .= "<input type=hidden name=\"src\" value=\"1\">\n";
