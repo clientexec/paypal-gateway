@@ -255,6 +255,10 @@ class PluginPaypal extends GatewayPlugin
                 // 86400 is the number of secs in a day
                 $initialPeriodLength = floor(($tmpNextBill- $todayDate) / 86400);
                 $initialPeriodUnits = 'D';
+                //D – for days; allowable range for p1 and p3 is 1 to 90
+                if ($initialPeriodLength <= 90) {
+                    $subscriptionsUsed = true;
+                }
             } else {
                 // special case: about to pay an invoice with a future due date
                 // First we normalize the timestamps to midnight
@@ -277,12 +281,16 @@ class PluginPaypal extends GatewayPlugin
                     }
                 } else {
                 */
-                    if($billingCycle >= 12){
-                        $initialPeriodLength = round($billingCycle / 12);
-                        $initialPeriodUnits = 'Y';
-                    }else{
+                    if($billingCycle < 12){
+                        //M – for months; allowable range for p1 and p3 is 1 to 24
                         $initialPeriodLength = $billingCycle;
                         $initialPeriodUnits = 'M';
+                        $subscriptionsUsed = true;
+                    }elseif(in_array($billingCycle, array(12, 24, 36, 48, 60))){
+                        //Y – for years; allowable range for p1 and p3 is 1 to 5
+                        $initialPeriodLength = round($billingCycle / 12);
+                        $initialPeriodUnits = 'Y';
+                        $subscriptionsUsed = true;
                     }
                 /*
                 }
@@ -292,13 +300,16 @@ class PluginPaypal extends GatewayPlugin
             // Special case: using prorating and including following payment with billing cycles greater than monthly
             // implies a trial period of more than 90 days, which is not supported by paypal.
             // In this case we must fallback to not use subscriptions :(
-            if ($initialPeriodLength <= 90) {
-                $subscriptionsUsed = true;
-
+            if ($subscriptionsUsed) {
                 $strRet .= "<input type=hidden name=\"cmd\" value=\"_xclick-subscriptions\">\n";
 
                 //Paypal currently only support subscriptions up to 5 Years
                 //https://developer.paypal.com/docs/classic/paypal-payments-standard/integration-guide/Appx_websitestandard_htmlvariables/
+                //Allowable values for t1 and t3 are:
+                //D – for days; allowable range for p1 and p3 is 1 to 90
+                //M – for months; allowable range for p1 and p3 is 1 to 24
+                //Y – for years; allowable range for p1 and p3 is 1 to 5
+
 
                 // Trial Period 1 used for initial signup payment.
                 // So we can include the total cost of Domain + Hosting + Setup.
@@ -310,12 +321,12 @@ class PluginPaypal extends GatewayPlugin
 
                 // Normal Billing cycle information including Recurring Payment (only the cost of service).
                 $strRet .= "<input type=hidden name=\"a3\" value=\"".$tRecurringTotal."\">\n";
-                if($billingCycle >= 12){
-                    $strRet .= "<input type=hidden name=\"p3\" value=\"".round($billingCycle / 12)."\">\n";
-                    $strRet .= "<input type=hidden name=\"t3\" value=\"Y\">\n";
-                }else{
+                if($billingCycle < 12){
                     $strRet .= "<input type=hidden name=\"p3\" value=\"$billingCycle\">\n";
                     $strRet .= "<input type=hidden name=\"t3\" value=\"M\">\n";
+                }elseif(in_array($billingCycle, array(12, 24, 36, 48, 60))){
+                    $strRet .= "<input type=hidden name=\"p3\" value=\"".round($billingCycle / 12)."\">\n";
+                    $strRet .= "<input type=hidden name=\"t3\" value=\"Y\">\n";
                 }
 
                 // Recurring and retry options. Set retry until Paypal's system gives up. And set recurring indefinately.)
