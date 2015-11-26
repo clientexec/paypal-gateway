@@ -201,7 +201,7 @@ class PluginPaypal extends GatewayPlugin
         //if($params['usingRecurringPlugin'] == '1' && !($params['invoiceSetup'] && !$params['invoicePackageUnproratedFee']))
 
         // use subscriptions only if has package fee
-        if($params['usingRecurringPlugin'] == '1' && $params['invoicePackageUnproratedFee'])
+        if($params['usingRecurringPlugin'] == '1' && isset($params['invoicePackageUnproratedFee']))
         {
             $billingCycle = $params['billingCycle'];
 
