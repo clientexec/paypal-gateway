@@ -46,9 +46,9 @@ class PluginPaypalCallback extends PluginCallback
 
         // post back to PayPal system to validate
         if (isset($_POST['test_ipn']) && $_POST['test_ipn'] == 1) {
-            $paypal_url = 'http://www.sandbox.paypal.com';
+            $paypal_url = 'https://www.sandbox.paypal.com';
         } else {
-            $paypal_url = 'http://www.paypal.com';
+            $paypal_url = 'https://www.paypal.com';
         }
         $header = "POST /cgi-bin/webscr HTTP/1.1\r\n";
         $header .= "User-Agent: PHP_Script\r\n";
