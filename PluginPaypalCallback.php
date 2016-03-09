@@ -103,7 +103,7 @@ class PluginPaypalCallback extends PluginCallback
                 $customerid = $cPlugin->m_Invoice->getUserID();
 
                 require_once 'modules/admin/models/Error_EventLog.php';
-                $errorLog = Error_EventLog::newInstance(false, 
+                $errorLog = Error_EventLog::newInstance(false,
                     (isset($customerid))? $customerid : 0,
                     $tInvoiceID,
                     ERROR_EVENTLOG_PAYPAL_REQUEST_CONFIRMATION,
@@ -116,7 +116,7 @@ class PluginPaypalCallback extends PluginCallback
                 $exit = true;
                 continue;
             }
-            
+
             CE_Lib::log(4,"Request Confirmation Returned (attempt $retry of $maxRetries): ".$res);
             if (strpos ($res, "VERIFIED") !== false) {
                 CE_Lib::log(4, "Callback has been verified successfully");
@@ -215,10 +215,10 @@ class PluginPaypalCallback extends PluginCallback
                         require_once 'modules/billing/models/BillingGateway.php';
                         $billingGateway = new BillingGateway($this->user);
                         $billingGateway->processCustomerBilling($customerid, $_POST['subscr_id']);
-                        
+
                         //Search for existing invoice, unpaid and with same subscription id
                         $newInvoice = $cPlugin->retrieveLastInvoiceForSubscription($_POST['subscr_id'], $ppTransID);
-                        
+
                         if($newInvoice === false){
                             $message = "There was a PayPal subscription payment for subscription ".$_POST['subscr_id'].".\n"
                                       ."However, the system could not find any pending invoice for this subscription. The PayPal transaction id for the payment is ".$ppTransID.".\n"
@@ -237,7 +237,7 @@ class PluginPaypalCallback extends PluginCallback
                             }
 
                             require_once 'modules/admin/models/Error_EventLog.php';
-                            $errorLog = Error_EventLog::newInstance(false, 
+                            $errorLog = Error_EventLog::newInstance(false,
                                 (isset($customerid))? $customerid : 0,
                                 $tInvoiceID,
                                 ERROR_EVENTLOG_PAYPAL_CALLBACK,
@@ -258,7 +258,7 @@ class PluginPaypalCallback extends PluginCallback
             $newInvoice = $cPlugin->retrieveLastInvoiceForSubscription($_POST['subscr_id'], $ppTransID, false);
             if($newInvoice === false){
                 require_once 'modules/admin/models/Error_EventLog.php';
-                $errorLog = Error_EventLog::newInstance(false, 
+                $errorLog = Error_EventLog::newInstance(false,
                     (isset($customerid))? $customerid : 0,
                     $tInvoiceID,
                     ERROR_EVENTLOG_PAYPAL_CALLBACK,
@@ -467,7 +467,7 @@ class PluginPaypalCallback extends PluginCallback
         if(!isset($_POST["custom"])){
             if(!isset($_POST["txn_type"]) || $_POST["txn_type"] != "new_case"){
                 require_once 'modules/admin/models/Error_EventLog.php';
-                $errorLog = Error_EventLog::newInstance(false, 
+                $errorLog = Error_EventLog::newInstance(false,
                     0,
                     0,
                     ERROR_EVENTLOG_PAYPAL_CALLBACK,
@@ -505,7 +505,7 @@ class PluginPaypalCallback extends PluginCallback
 
         if(!isset($customerid) || $invoiceNotFound){
             require_once 'modules/admin/models/Error_EventLog.php';
-            $errorLog = Error_EventLog::newInstance(false, 
+            $errorLog = Error_EventLog::newInstance(false,
                 (isset($customerid))? $customerid : 0,
                 $tInvoiceID,
                 ERROR_EVENTLOG_PAYPAL_CALLBACK,
@@ -516,7 +516,7 @@ class PluginPaypalCallback extends PluginCallback
             return false;
         }else{
             require_once 'modules/billing/models/Invoice_EventLog.php';
-            $invoiceLog = Invoice_EventLog::newInstance(false, 
+            $invoiceLog = Invoice_EventLog::newInstance(false,
                 $customerid,
                 $tInvoiceID,
                 INVOICE_EVENTLOG_PAYPAL_CALLBACK,
