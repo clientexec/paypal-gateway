@@ -1,5 +1,6 @@
 <?php
 require_once 'modules/admin/models/GatewayPlugin.php';
+require_once 'modules/billing/models/class.gateway.plugin.php';
 require_once 'modules/billing/models/Currency.php';
 
 /**
@@ -9,89 +10,130 @@ class PluginPaypal extends GatewayPlugin
 {
     function getVariables()
     {
-        /* Specification
-            itemkey     - used to identify variable in your other functions
-            type          - text,textarea,yesno,password
-            description - description of the variable, displayed in ClientExec
-        */
-
-        $variables = array (
-            lang("Plugin Name") => array (
-                                "type"          =>"hidden",
-                                "description"   =>lang("How CE sees this plugin (not to be confused with the Signup Name)"),
-                                "value"         =>lang("Paypal")
-                                ),
-            lang("User ID") => array (
-                                 "type"          =>"text",
-                                 "description"   =>lang("The email used to identify you to PayPal.<br>NOTE: The email is required if you have selected PayPal as a payment gateway for any of your clients."),
-                                 "value"         =>""
-                                 ),
-             lang("Signup Name") => array (
-                                 "type"          =>"text",
-                                 "description"   =>lang("Select the name to display in the signup process for this payment type. Example: eCheck or Credit Card."),
-                                 "value"         =>"Credit Card, eCheck, or Paypal"
-                                 ),
-            lang("Generate Invoices After Callback Notification") => array (
-                                "type"          =>"hidden",
-                                "description"   =>lang("Select YES if you prefer CE to only generate invoices upon notification of payment via the callback supported by this processor.  Setting to NO will generate invoices normally but require you to manually mark them paid as you receive notification from processor."),
-                                "value"         =>"1"
-                                ),
-            lang("Invoice After Signup") => array (
-                                "type"          =>"yesno",
-                                "description"   =>lang("Select YES if you want an invoice sent to the customer after signup is complete."),
-                                "value"         =>"1"
-                                ),
-            lang("Use PayPal Sandbox") => array(
-                                "type"          =>"yesno",
-                                "description"   =>lang("Select YES if you want to use Paypal's testing server, so no actual monetary transactions are made. You need to have a developer account with Paypal, and be logged-in in the developer panel in another browser window for the transaction to be successful."),
-                                "value"         =>"0"
+        $variables = array(
+            lang('Plugin Name') => array(
+                'type'        => 'hidden',
+                'description' => lang('How CE sees this plugin (not to be confused with the Signup Name)'),
+                'value'       => lang('Paypal')
+            ),
+            lang('User ID') => array(
+                'type'        => 'text',
+                'description' => lang('The email used to identify you to PayPal.<br>NOTE: The email is required if you have selected PayPal as a payment gateway for any of your clients.'),
+                'value'       => ''
+            ),
+            lang('Signup Name') => array(
+                'type'        => 'text',
+                'description' => lang('Select the name to display in the signup process for this payment type. Example: eCheck or Credit Card.'),
+                'value'       => 'Credit Card, eCheck, or Paypal'
+            ),
+            lang('Invoice After Signup') => array(
+                'type'        => 'yesno',
+                'description' => lang('Select YES if you want an invoice sent to the customer after signup is complete.'),
+                'value'       => '1'
+            ),
+            lang('Use PayPal Sandbox') => array(
+                'type'        => 'yesno',
+                'description' => lang('Select YES if you want to use Paypal\'s testing server, so no actual monetary transactions are made. You need to have a developer account with Paypal, and be logged-in in the developer panel in another browser window for the transaction to be successful.'),
+                'value'       => '0'
             ),
             lang('Paypal Subscriptions Option')=> array(
-                                'type'          => 'options',
-                                'description'   => lang('Determine if you are going to use subscriptions for recurring charges.  Subscriptions are started after the initial payment is completed by customer.'),
-                                'options'       => array(0 => lang( 'Use subscriptions' ),
-                                                         1 => lang('Do not use subscriptions')),
+                'type'        => 'options',
+                'description' => lang('Determine if you are going to use subscriptions for recurring charges.<ul><li>Please avoid using <b>"Duration in months"</b> in your recurring fees if you are planning to use Paypal Subscriptions. The subscription will be unlimited until manually canceled either by you, your client or Paypal if lack of funds, etc.</li><li>Subscriptions will be created after a payment is completed by the customer, as long as the invoice was paid before becoming overdue.</li><li>Subscriptions will not be created if the invoice has prorated items, or with billing cycles greater than 5 years.</li></ul>'),
+                'options'     => array(
+                    0 => lang('Use subscriptions'),
+                    1 => lang('Do not use subscriptions')
+                )
             ),
-            lang("Separate Taxes") => array (
-                                "type"          =>"yesno",
-                                "description"   =>lang("Select YES if you want to pass amount and taxes separated to this payment processor."),
-                                "value"         =>"0"
+            lang('Page Style') => array(
+                'type'        => 'text',
+                'description' => lang('Please enter the name of the page style you would like displayed'),
+                'value'       => ''
             ),
-           lang("Check CVV2") => array (
-                                "type"          =>"hidden",
-                                "description"   =>lang("Select YES if you want to accept CVV2 for this plugin."),
-                                "value"         =>"0"
+            lang('Separate Taxes') => array(
+                'type'        => 'yesno',
+                'description' => lang('Select YES if you want to pass amount and taxes separated to this payment processor.'),
+                'value'       => '0'
             ),
-            lang("API Username") => array (
-                                 "type"          =>"text",
-                                 "description"   =>lang("Please enter your API Username"),
-                                 "value"         =>""
-             ),
-            lang("API Password") => array (
-                                 "type"          =>"text",
-                                 "description"   =>lang("Please enter your API Password"),
-                                 "value"         =>""
-             ),
-            lang("API Signature") => array (
-                                 "type"          =>"text",
-                                 "description"   =>lang("Please enter your API Signature"),
-                                 "value"         =>""
-             ),
-             lang("Page Style") => array (
-                                 "type"          =>"text",
-                                 "description"   =>lang("Please enter the name of the page style you would like displayed"),
-                                 "value"         =>""
-             ),
+            lang('Check CVV2') => array(
+            'type'        => 'hidden',
+            'description' => lang('Select YES if you want to accept CVV2 for this plugin.'),
+            'value'       => '0'
+            ),
+
+            lang('API Username') => array(
+                'type'        => 'text',
+                'description' => lang('Please enter your API Username.<br><b>Required to do refunds or cancel subscriptions.</b>'),
+                'value'       => ''
+            ),
+            lang('API Password') => array(
+                'type'        => 'text',
+                'description' => lang('Please enter your API Password.<br><b>Required to do refunds or cancel subscriptions.</b>'),
+                'value'       => ''
+            ),
+            lang('API Signature') => array(
+                'type'        => 'text',
+                'description' => lang('Please enter your API Signature.<br><b>Required to do refunds or cancel subscriptions.</b>'),
+                'value'       => ''
+            ),
+
+            lang('API Client ID') => array(
+                'type'        => 'text',
+                'description' => lang('Please enter your API Client ID.<br><b>Required to use the new API.</b><br>To get this value, you need to login to <a href="https://developer.paypal.com" target="_blank">https://developer.paypal.com</a> using your live PayPal account credentials and then follow the instructions below:<ul><li>Go to Dashboard > My Apps & Credentials</li><li>Go to REST API Apps > Create App</li><li>Enter a name for the app and generate an app</li><li>Once the App is generated, click on the App > Select "Live" mode and then you will see the live "Client ID" and "Secret"</li></ul><b>NOTE:</b> Make sure to create one app per each Clientexec installation you use, or it could lead to issues.'),
+                'value'       => ''
+            ),
+            lang('Form') => array(
+                'type'        => 'hidden',
+                'description' => lang('Has a form to be loaded?  1 = YES, 0 = NO<br><b>Required to use the new API.</b>'),
+                'value'       => '1'
+            ),
+
+            lang('API Secret') => array(
+                'type'        => 'text',
+                'description' => lang('Please enter your API Secret.<br><b>Required to do subscriptions using the new API.</b><br>To get this value, you need to login to <a href="https://developer.paypal.com" target="_blank">https://developer.paypal.com</a> using your live PayPal account credentials and then follow the instructions below:<ul><li>Go to Dashboard > My Apps & Credentials</li><li>Go to REST API Apps > Create App</li><li>Enter a name for the app and generate an app</li><li>Once the App is generated, click on the App > Select "Live" mode and then you will see the live "Client ID" and "Secret"</li></ul><b>NOTE:</b> Make sure to create one app per each Clientexec installation you use, or it could lead to issues.'),
+                'value'       => ''
+            ),
         );
+
         return $variables;
+    }
+
+    function cancelSubscription($params)
+    {
+        //NEW API CODE
+        if ($params['plugin_paypal_API Client ID'] != '') {
+            $this->newAPIcancelSubscription($params);
+            return;
+        }
+        //NEW API CODE
+
+        if ( $params['plugin_paypal_API Username'] == '' || $params['plugin_paypal_API Password'] == '' || $params['plugin_paypal_API Signature'] == '' ) {
+            throw new CE_Exception('You must fill out the API Section of the PayPal configuration to Cancel Paypal Subscriptions.');
+        }
+
+        $subscriptionId = urlencode($params['subscriptionId']);
+        $memo = urlencode('Cancelled due to client requesting cancellation of package');
+        $requestString = "&PROFILEID={$subscriptionId}&ACTION=Cancel&NOTE={$memo}";
+        $response = $this->sendRequest('ManageRecurringPaymentsProfileStatus ', $requestString, $params);
+
+        if (!in_array(strtoupper($response["ACK"]), array('SUCCESS', 'SUCCESSWITHWARNING'))) {
+            $errorMessage = urldecode($response['L_LONGMESSAGE0']);
+            CE_Lib::log(4, 'Error with PayPal Cancel Subscription: ' . print_r($response, true));
+            return $errorMessage;
+        }
     }
 
     function credit($params)
     {
+        //NEW API CODE
+        if ($params['plugin_paypal_API Client ID'] != '') {
+            $this->newAPIcredit($params);
+            return;
+        }
+        //NEW API CODE
+
         if ( $params['plugin_paypal_API Username'] == '' || $params['plugin_paypal_API Password'] == '' || $params['plugin_paypal_API Signature'] == '' ) {
             throw new CE_Exception('You must fill out the API Section of the PayPal configuration to do PayPal refunds.');
         }
-
 
         $transactionID = $params['invoiceRefundTransactionId'];
         $currency = urlencode($params['userCurrency']);
@@ -101,7 +143,7 @@ class PluginPaypal extends GatewayPlugin
         $requestString = "&TRANSACTIONID={$transactionID}&REFUNDTYPE={$refundType}&CURRENCYCODE={$currency}&NOTE={$memo}";
 
         $response = $this->sendRequest('RefundTransaction', $requestString, $params);
-        if("SUCCESS" == strtoupper($response["ACK"]) || "SUCCESSWITHWARNING" == strtoupper($response["ACK"])) {
+        if ("SUCCESS" == strtoupper($response["ACK"]) || "SUCCESSWITHWARNING" == strtoupper($response["ACK"])) {
             return array('AMOUNT' => $params['invoiceTotal']);
         } else {
             $errorMessage = urldecode($response['L_LONGMESSAGE0']);
@@ -117,7 +159,7 @@ class PluginPaypal extends GatewayPlugin
         $API_Password = urlencode($params['plugin_paypal_API Password']);
         $API_Signature = urlencode($params['plugin_paypal_API Signature']);
         $API_Endpoint = "https://api-3t.paypal.com/nvp";
-        if ( $params['plugin_paypal_Use PayPal Sandbox'] == '1' ) {
+        if ($params['plugin_paypal_Use PayPal Sandbox'] == '1') {
             $API_Endpoint = "https://api-3t.sandbox.paypal.com/nvp";
         }
         $version = urlencode('51.0');
@@ -143,7 +185,7 @@ class PluginPaypal extends GatewayPlugin
         // Get response from the server.
         $httpResponse = curl_exec($ch);
 
-        if(!$httpResponse) {
+        if (!$httpResponse) {
             throw new CE_Exception("PayPal $methodName failed: ".curl_error($ch).'('.curl_errno($ch).')');
         }
 
@@ -153,12 +195,12 @@ class PluginPaypal extends GatewayPlugin
         $httpParsedResponseAr = array();
         foreach ($httpResponseAr as $i => $value) {
             $tmpAr = explode("=", $value);
-            if(sizeof($tmpAr) > 1) {
+            if (count($tmpAr) > 1) {
                 $httpParsedResponseAr[$tmpAr[0]] = $tmpAr[1];
             }
         }
 
-        if((0 == sizeof($httpParsedResponseAr)) || !array_key_exists('ACK', $httpParsedResponseAr)) {
+        if ((0 == count($httpParsedResponseAr)) || !array_key_exists('ACK', $httpParsedResponseAr)) {
             throw new CE_Exception("Invalid HTTP Response for POST request($nvpreq) to $API_Endpoint.");
         }
 
@@ -167,10 +209,48 @@ class PluginPaypal extends GatewayPlugin
 
     function singlepayment($params, $test = false)
     {
+        //NEW API CODE
+        if ($params['plugin_paypal_API Client ID'] != '') {
+            $subscriptionsUsed = false;
+
+            // use subscriptions only if has package fee
+            if ($params['usingRecurringPlugin'] == '1' && isset($params['invoicePackageUnproratedFee'])) {
+                // If prorating, avoid creating a subscription
+                // If period is greather than 5 years (60 months), avoid creating a subscription as Paypal does not support it
+                //     Paypal currently only support subscriptions up to 5 Years
+                //         https://developer.paypal.com/docs/classic/paypal-payments-standard/integration-guide/Appx_websitestandard_htmlvariables/
+                //             Allowable values for t1 and t3 are:
+                //                 D – for days;   allowable range for p1 and p3 is 1 to 90
+                //                 M – for months; allowable range for p1 and p3 is 1 to 24
+                //                 Y – for years;  allowable range for p1 and p3 is 1 to 5
+                if ($params['plugin_paypal_API Secret'] != '' && !$params['invoiceProratingDays'] && $params['billingCycle'] > 0
+                  && ($params['billingCycle'] < 12 || in_array($params['billingCycle'], array(12, 24, 36, 48, 60)))) {
+                    $subscriptionsUsed = true;
+                }
+
+                if ($subscriptionsUsed) {
+                    CE_Lib::log(4, 'Paypal will try to create a new subscription using the new API');
+                    if ($test) {
+                        return $this->newAPIcreateSubscription($params);
+                    } else {
+                        echo $this->newAPIcreateSubscription($params);
+                        exit;
+                    }
+                }
+            }
+
+            if (!$subscriptionsUsed) {
+                CE_Lib::log(4, 'Paypal will try to charge a new payment using the new API');
+                $this->newAPIsinglePayment($params);
+                exit;
+            }
+        }
+        //NEW API CODE
+
         $currency = new Currency($this->user);
 
         //Function needs to build the url to the payment processor, then redirect
-        $stat_url = mb_substr($params['clientExecURL'],-1,1) == "//" ? $params['clientExecURL']."plugins/gateways/paypal/callback.php" : $params['clientExecURL']."/plugins/gateways/paypal/callback.php";
+        $stat_url = mb_substr($params['clientExecURL'], -1, 1) == "//" ? $params['clientExecURL']."plugins/gateways/paypal/callback.php" : $params['clientExecURL']."/plugins/gateways/paypal/callback.php";
         if ($params['plugin_paypal_Use PayPal Sandbox'] == '1') {
             $paypal_url = 'https://www.sandbox.paypal.com/cgi-bin/webscr';
         } else {
@@ -181,153 +261,81 @@ class PluginPaypal extends GatewayPlugin
         $strRet .= "<head></head>\n";
         $strRet .= "<body>\n";
         $strRet .= "<form name=frmPayPal action=\"$paypal_url\" method=\"post\">\n";
-        $strRet .= "<input type=hidden name=\"business\" value=\"".$params["plugin_paypal_User ID"]."\">\n";
+        $strRet .= "<input type=hidden name=\"business\" value=\"".trim($params["plugin_paypal_User ID"])."\">\n";
 
         //determine if this is a single payment
         // We will ignore the domain subscription. Billing has become complicated.
         // Good part is, the subcription will be created in the next payment, and using the renewal value
-        if (!$params['billingCycle']){
-            $params['usingRecurringPlugin']=0;
+        if (!$params['billingCycle']) {
+            $params['usingRecurringPlugin'] = 0;
         }
         //echo "<pre>";print_r($params);echo "</pre>\n";
 
         $subscriptionsUsed = false;
-        $initialTrial = true;
 
         // This var will be used to pass the excluded recurring fees ids for the subscription if any
         $tRecurringExclude = '';
 
-        // don't use subscriptions if it's a package with a setup fee and no package fee
-        //if($params['usingRecurringPlugin'] == '1' && !($params['invoiceSetup'] && !$params['invoicePackageUnproratedFee']))
-
         // use subscriptions only if has package fee
-        if($params['usingRecurringPlugin'] == '1' && isset($params['invoicePackageUnproratedFee']))
-        {
+        if ($params['usingRecurringPlugin'] == '1' && isset($params['invoicePackageUnproratedFee'])) {
             $billingCycle = $params['billingCycle'];
 
             // paypal only accepts two decimals
-            $initialAmount = $currency->format($params['currencytype'], $params['invoiceTotal'], false);
+            $initialAmount = sprintf("%01.2f", round($params['invoiceTotal'], 2));
 
             // if invoicePackageUnproratedFee is 0, it means this is not a package invoice, so the invoiceTotal will be the same charge always
             $tRecurringTotal = 0;
 
             if (!$params['invoicePackageUnproratedFee']) {
-            //if (!$params['invoicePackageUnproratedFee'] || (!$params['isSignup'] && $params['sameCycleAmongEntries'])) {
-                $tRecurringTotal = $currency->format($params['currencytype'], $params['invoiceTotal'], false);
+                $tRecurringTotal = $params['invoiceTotal'];
             } else {
-                $tRecurringTotal += $params['invoicePackageUnproratedFee'];
-                $tRecurringTotal = $currency->format($params['currencytype'], $tRecurringTotal, false);
+                $tRecurringTotal = $params['invoicePackageUnproratedFee'];
 
-                if(count($params['invoiceExcludedRecurrings']) > 0){
+                if (count($params['invoiceExcludedRecurrings']) > 0) {
                     $tRecurringExclude = '_'.implode(',', $params['invoiceExcludedRecurrings']);
                 }
             }
 
-            $todayDate = mktime(0, 0, 0);
-            if ($params['invoiceProratingDays']) {
-                // If prorating, next payment will be on the prorate day at least
-                $today = date('d');
-                $month = date('m');
-                if ($today < $this->settings->get('Prorate To Day')) {
-                   $tmpNextBill = mktime(0,0,0, $month, $this->settings->get('Prorate To Day'));
-                } else {
-                   $tmpNextBill = mktime(0,0,0,$month + 1, $this->settings->get('Prorate To Day'));
-                }
+            $tRecurringTotal = sprintf("%01.2f", round($tRecurringTotal, 2));
 
-                $includeFollowingPayment = $this->settings->get('Include Following Payment');
-                // If including following payment is set as well, then move the next payment one billing cycle later
-                if (    ($includeFollowingPayment == 0 && $params['invoiceProratingDays'] <= 10)
-                        || ($includeFollowingPayment == 2 && $params['billingCycle'] != 1)
-                        || ($includeFollowingPayment == 3 && $params['billingCycle'] == 1)
-                        || ($includeFollowingPayment == 1))
-                {
-
-                    // use strtotime to take care of 30/31 days in a month and leap years
-                    if ($params['billingCycle'] == 12) { // 12 months == 1 year
-                       $tmpNextBill = strtotime('+1 year', $tmpNextBill);
-                    } else if ($params['billingCycle'] == 24) { // 24 months == 2 years
-                       $tmpNextBill = strtotime('+2 year', $tmpNextBill);
-                    } else { // X month
-                       $tmpNextBill = strtotime('+'.$params['billingCycle'].' month', $tmpNextBill);
-                    }
-                }
-
-                // 86400 is the number of secs in a day
-                $initialPeriodLength = floor(($tmpNextBill- $todayDate) / 86400);
-                $initialPeriodUnits = 'D';
-                //D – for days; allowable range for p1 and p3 is 1 to 90
-                if ($initialPeriodLength <= 90) {
-                    $subscriptionsUsed = true;
-                }
-            } else {
-                // special case: about to pay an invoice with a future due date
+            // If prorating, avoid creating a subscription
+            // If period is greather than 5 years (60 months), avoid creating a subscription as Paypal does not support it
+            //     Paypal currently only support subscriptions up to 5 Years
+            //         https://developer.paypal.com/docs/classic/paypal-payments-standard/integration-guide/Appx_websitestandard_htmlvariables/
+            //             Allowable values for t1 and t3 are:
+            //                 D – for days;   allowable range for p1 and p3 is 1 to 90
+            //                 M – for months; allowable range for p1 and p3 is 1 to 24
+            //                 Y – for years;  allowable range for p1 and p3 is 1 to 5
+            if (!$params['invoiceProratingDays'] && $billingCycle > 0 && $billingCycle <= 60) {
                 // First we normalize the timestamps to midnight
                 $dueDate = mktime(0, 0, 0, date('m', $params['invoiceDueDate']), date('d', $params['invoiceDueDate']), date('Y', $params['invoiceDueDate']));
 
-                //Code commented to avoid a bad pricing issue
-                /*
-                if ($todayDate < $dueDate) {
-                    if ($billingCycle >= 12) { // 12 months == 1 year, 24 == 2 years
-                        // In this case we can't create an initial trial period so that following payments are made on the due date,
-                        // because that would imply a initial trial period longer than 90 days which is not allowed by Paypal.
-                        // For example if client pays 5 days in advance we would have an initial trial period of 365+5 = 370
-                        $initialTrial = false;
-                        $initialPeriodLength = floor(($dueDate - $todayDate) / 86400);
-                        $initialPeriodUnits = 'D';
-                    } else { // X month
-                       $dueDate = strtotime("+$billingCycle month", $dueDate);
-                        $initialPeriodLength = floor(($dueDate - $todayDate) / 86400);
-                        $initialPeriodUnits = 'D';
-                    }
-                } else {
-                */
-                    if($billingCycle < 12){
-                        //M – for months; allowable range for p1 and p3 is 1 to 24
-                        $initialPeriodLength = $billingCycle;
-                        $initialPeriodUnits = 'M';
-                        $subscriptionsUsed = true;
-                    }elseif(in_array($billingCycle, array(12, 24, 36, 48, 60))){
-                        //Y – for years; allowable range for p1 and p3 is 1 to 5
-                        $initialPeriodLength = round($billingCycle / 12);
-                        $initialPeriodUnits = 'Y';
-                        $subscriptionsUsed = true;
-                    }
-                /*
+                if ($billingCycle < 12) {
+                    //M – for months; allowable range for p1 and p3 is 1 to 24
+                    $initialPeriodLength = $billingCycle;
+                    $initialPeriodUnits = 'M';
+                    $subscriptionsUsed = true;
+                } elseif (in_array($billingCycle, array(12, 24, 36, 48, 60))) {
+                    //Y – for years; allowable range for p1 and p3 is 1 to 5
+                    $initialPeriodLength = round($billingCycle / 12);
+                    $initialPeriodUnits = 'Y';
+                    $subscriptionsUsed = true;
                 }
-                */
             }
 
-            // Special case: using prorating and including following payment with billing cycles greater than monthly
-            // implies a trial period of more than 90 days, which is not supported by paypal.
-            // In this case we must fallback to not use subscriptions :(
             if ($subscriptionsUsed) {
                 $strRet .= "<input type=hidden name=\"cmd\" value=\"_xclick-subscriptions\">\n";
 
-                //Paypal currently only support subscriptions up to 5 Years
-                //https://developer.paypal.com/docs/classic/paypal-payments-standard/integration-guide/Appx_websitestandard_htmlvariables/
-                //Allowable values for t1 and t3 are:
-                //D – for days; allowable range for p1 and p3 is 1 to 90
-                //M – for months; allowable range for p1 and p3 is 1 to 24
-                //Y – for years; allowable range for p1 and p3 is 1 to 5
-
-
                 // Trial Period 1 used for initial signup payment.
                 // So we can include the total cost of Domain + Hosting + Setup.
-                if ($initialTrial) {
-                    $strRet .= "<input type=hidden name=\"a1\" value=\"$initialAmount\">\n";
-                    $strRet .= "<input type=hidden name=\"p1\" value=\"".$initialPeriodLength."\">\n";
-                    $strRet .= "<input type=hidden name=\"t1\" value=\"$initialPeriodUnits\">\n";
-                }
+                $strRet .= "<input type=hidden name=\"a1\" value=\"$initialAmount\">\n";
+                $strRet .= "<input type=hidden name=\"p1\" value=\"".$initialPeriodLength."\">\n";
+                $strRet .= "<input type=hidden name=\"t1\" value=\"$initialPeriodUnits\">\n";
 
                 // Normal Billing cycle information including Recurring Payment (only the cost of service).
                 $strRet .= "<input type=hidden name=\"a3\" value=\"".$tRecurringTotal."\">\n";
-                if($billingCycle < 12){
-                    $strRet .= "<input type=hidden name=\"p3\" value=\"$billingCycle\">\n";
-                    $strRet .= "<input type=hidden name=\"t3\" value=\"M\">\n";
-                }elseif(in_array($billingCycle, array(12, 24, 36, 48, 60))){
-                    $strRet .= "<input type=hidden name=\"p3\" value=\"".round($billingCycle / 12)."\">\n";
-                    $strRet .= "<input type=hidden name=\"t3\" value=\"Y\">\n";
-                }
+                $strRet .= "<input type=hidden name=\"p3\" value=\"$initialPeriodLength\">\n";
+                $strRet .= "<input type=hidden name=\"t3\" value=\"$initialPeriodUnits\">\n";
 
                 // Recurring and retry options. Set retry until Paypal's system gives up. And set recurring indefinately.)
                 $strRet .= "<input type=hidden name=\"src\" value=\"1\">\n";
@@ -335,8 +343,8 @@ class PluginPaypal extends GatewayPlugin
 
                 $strRet .= "<input type=hidden name=\"item_name\" value=\"".$params["companyName"]." - Subscription\">\n";
             }
-
         }
+
         if (!$subscriptionsUsed) {
             $params['usingRecurringPlugin'] = 0;
             $strRet .= "<input type=hidden name=\"cmd\" value=\"_ext-enter\">\n";
@@ -345,11 +353,11 @@ class PluginPaypal extends GatewayPlugin
             $strRet .= "<input type=hidden name=\"item_number\" value=\"".$params['invoiceNumber']."\">\n";
 
             if ($params['plugin_paypal_Separate Taxes'] == '1') {
-                $amount = $currency->format($params['currencytype'], $params['invoiceRawAmount'] , false);
-                $tax = $currency->format($params['currencytype'], $params['invoiceTaxes'] , false);
+                $amount = sprintf("%01.2f", round($params['invoiceRawAmount'], 2));
+                $tax = sprintf("%01.2f", round($params['invoiceTaxes'], 2));
                 $strRet .= "<input type=hidden name=\"tax\" value=\"$tax\">\n";
-            }else{
-                $amount = $currency->format($params['currencytype'], $params['invoiceTotal'] , false);
+            } else {
+                $amount = sprintf("%01.2f", round($params['invoiceTotal'], 2));
             }
             $strRet .= "<input type=hidden name=\"amount\" value=\"$amount\">\n";
         }
@@ -357,20 +365,20 @@ class PluginPaypal extends GatewayPlugin
         //Need to check to see if user is coming from signup
         if ($params['isSignup']==1) {
             // Actually handle the signup URL setting
-            if($this->settings->get('Signup Completion URL') != '') {
+            if ($this->settings->get('Signup Completion URL') != '') {
 
                 $returnURL=$this->settings->get('Signup Completion URL'). '?success=1';
                 $returnURL_Cancel=$this->settings->get('Signup Completion URL');
-            }else{
+            } else {
                 $returnURL=$params["clientExecURL"]."/order.php?step=complete&pass=1";
                 $returnURL_Cancel=$params["clientExecURL"]."/order.php?step=3";
             }
-        }else {
+        } else {
             $returnURL=$params["invoiceviewURLSuccess"];
             $returnURL_Cancel=$params["invoiceviewURLCancel"];
         }
 
-        $strRet .= "<input type=hidden name=\"custom\" value=\"".$params['invoiceNumber']."_".$params['usingRecurringPlugin']."_".$params["plugin_paypal_Generate Invoices After Callback Notification"].$tRecurringExclude."\">\n";
+        $strRet .= "<input type=hidden name=\"custom\" value=\"".$params['invoiceNumber']."_".$params['usingRecurringPlugin']."_1".$tRecurringExclude."\">\n";
         $strRet .= "<input type=hidden name=\"return\" value=\"".$returnURL."\">\n";
         $strRet .= "<input type=hidden name=\"rm\" value=\"2\">\n";
         $strRet .= "<input type=hidden name=\"cancel_return\" value=\"".$returnURL_Cancel."\">\n";
@@ -408,5 +416,911 @@ class PluginPaypal extends GatewayPlugin
             exit;
         }
     }
+
+    //NEW API CODE
+    function newAPIsinglePayment($params)
+    {
+        //Get the values of the custom fields defined in the top of the file form.phtml
+        $pluginFolderName = basename(dirname(__FILE__));
+        $Transaction_ID = $params['plugincustomfields'][$pluginFolderName.'_Transaction_ID'];
+        $Transaction_State = strtolower($params['plugincustomfields'][$pluginFolderName.'_Transaction_State']);
+        $Transaction_Amount = $params['plugincustomfields'][$pluginFolderName.'_Transaction_Amount'];
+        $Transaction_Currency = $params['plugincustomfields'][$pluginFolderName.'_Transaction_Currency'];
+
+        //Set this variable later to false if something fails.
+        $success = true;
+
+        //Set in this variable the values you will use in the callback.
+        $newParams = array();
+        $newParams['newApi'] = 1;
+        $newParams['invoiceId'] = $params['invoiceNumber'];
+
+        //Make sure to get and assign the transaction amount from the parameters returned from the gateway.
+        //Please take in count $params['invoiceTotal'] has the amount of the transaction that will be refunded, while it has the balance due of the invoice when doing a payment
+        $newParams['transactionAmount'] = $Transaction_Amount;
+
+        //Make sure to get and assign the credit card last four digits from the parameters returned from the gateway, or set it as 'NA' if not available.
+        //Allowed values: 'NA', credit card last four digits.
+        $newParams['transactionLast4'] = 'NA';
+
+        //If something failed, set this variable to false.
+        if ($Transaction_State == 'denied') {
+            $success = false;
+        }
+
+        //Make sure to get and assign the type of transaction from the parameters returned from the gateway.
+        //Allowed values: charge, refund
+        $newParams['transactionAction'] = 'charge';
+
+        //Make sure to get and assign the transaction id from the parameters returned from the gateway.
+        $newParams['transactionId'] = $Transaction_ID;
+
+        //Make sure to get and assign the transaction status from the parameters returned from the gateway.
+        //Possible values: completed, partially_refunded, pending, refunded, denied.
+        $newParams['transactionStatus'] = $Transaction_State;
+
+        //This code will be calling the callback file directly
+        $pluginFolderName = basename(dirname(__FILE__));
+        include 'plugins/gateways/'.$pluginFolderName.'/Plugin'.ucfirst($pluginFolderName).'Callback.php';
+        $callbackClassName = 'Plugin'.ucfirst($pluginFolderName).'Callback';
+        $callback = new $callbackClassName;
+        $callback->setCallbackParams($newParams);
+        $callback->processCallback();
+
+        //Need to check to see if user is coming from signup
+        if ($params['isSignup'] == 1) {
+            // Actually handle the signup URL setting
+            if ($this->settings->get('Signup Completion URL') != '') {
+                if ($success === true) {
+                    $returnUrl = $this->settings->get('Signup Completion URL').'?success=1';
+                } else {
+                    $returnUrl = $this->settings->get('Signup Completion URL');
+                }
+            } else {
+                if ($success === true) {
+                    $returnUrl = $params["clientExecURL"]."/order.php?step=complete&pass=1";
+                } else {
+                    $returnUrl = $params["clientExecURL"]."/order.php?step=3";
+                }
+            }
+        } else {
+            if ($success === true) {
+                $returnUrl = $params["invoiceviewURLSuccess"];
+            } else {
+                $returnUrl = $params["invoiceviewURLCancel"];
+            }
+        }
+
+        header("Location: " . $returnUrl);
+    }
+
+    //NEW API CODE
+    public function getForm($params)
+    {
+        if ( $params['from'] == 'paymentmethod' ) {
+            return '';
+        }
+
+        if ($params['from'] == 'signup') {
+            $fakeForm = '<a style="margin-left:0px;cursor:pointer;" class="btn-success btn btn-lg customButton center-on-mobile '.((isset($params['termsConditions']) && $params['termsConditions'])? 'disabled' : '').'" onclick="cart.submit_form('.$params['loggedIn'].');"  id="submitButton"></a>';
+        } else {
+            $fakeForm = '<button style="margin-left:0px;cursor:pointer;" class="pull-right btn btn-lg btn-default" id="submitButton">'.$this->user->lang('Pay Invoice').'</button>';
+        }
+
+        //NEW API CODE
+        $params['plugin_paypal_API Client ID'] = trim($this->settings->get('plugin_paypal_API Client ID'));
+
+        if ($params['plugin_paypal_API Client ID'] != '') {
+            $subscriptionsUsed = false;
+
+            if ($params['from'] == 'signup') {
+                $useRecurringPlugin = 0;
+
+                if ($this->user->getID() != 0) {
+                    $useRecurringPlugin = $this->user->getUsePaypalSubscriptions();
+                } elseif (!is_null($this->settings->get('plugin_paypal_Paypal Subscriptions Option')) && $this->settings->get('plugin_paypal_Paypal Subscriptions Option') == 0) {
+                    $useRecurringPlugin = 1;
+                }
+
+                $invoiceBillingCycle = 0;
+                $billingCycle = 0;
+
+                foreach ($params['cartsummary']['cartItems'] as $cartItem) {
+                    if ($invoiceBillingCycle < $cartItem['trueTerm']) {
+                        $invoiceBillingCycle = $cartItem['trueTerm'];
+                    }
+
+                    if ($billingCycle < $cartItem['trueTerm']) {
+                        $billingCycle = $cartItem['trueTerm'];
+                    }
+
+                    if (isset($cartItem['hasAddons']) && $cartItem['hasAddons']) {
+                        foreach ($cartItem['addons'] as $cartAddon) {
+                            if ($invoiceBillingCycle < $cartAddon['recurringprice_cyle']) {
+                                $invoiceBillingCycle = $cartAddon['recurringprice_cyle'];
+                            }
+                        }
+                    }
+                }
+
+                if (!$billingCycle) {
+                    $billingCycle = $invoiceBillingCycle;
+                }
+
+                $params['billingCycle'] = $billingCycle;
+                $params['usingRecurringPlugin'] = $useRecurringPlugin;
+                $params['plugin_paypal_API Secret'] = trim($this->settings->get('plugin_paypal_API Secret'));
+                $params['invoiceProratingDays'] = (isset($params['cartsummary']['isProRating']))? $params['cartsummary']['isProRating'] : 0;
+
+                // use subscriptions only if has package fee
+                if ($params['usingRecurringPlugin'] == '1') {
+                    // If prorating, avoid creating a subscription
+                    // If period is greather than 5 years (60 months), avoid creating a subscription as Paypal does not support it
+                    //     Paypal currently only support subscriptions up to 5 Years
+                    //         https://developer.paypal.com/docs/classic/paypal-payments-standard/integration-guide/Appx_websitestandard_htmlvariables/
+                    //             Allowable values for t1 and t3 are:
+                    //                 D – for days;   allowable range for p1 and p3 is 1 to 90
+                    //                 M – for months; allowable range for p1 and p3 is 1 to 24
+                    //                 Y – for years;  allowable range for p1 and p3 is 1 to 5
+                    if ($params['plugin_paypal_API Secret'] != '' && !$params['invoiceProratingDays'] && $params['billingCycle'] > 0
+                      && ($params['billingCycle'] < 12 || in_array($params['billingCycle'], array(12, 24, 36, 48, 60)))) {
+                        $subscriptionsUsed = true;
+                    }
+                }
+            } else {
+                $tempInvoice = new Invoice($params['invoiceId']);
+                $tempUser = new User($tempInvoice->getUserID());
+
+                // if corresponding recurringfee entry has been set to disablegenereate=0 (after a subscription cancellation),
+                // or if it has a monthly usage
+                // then don't use paypal subscriptions even if the user settings say so
+                $useRecurringPlugin = $tempUser->getUsePaypalSubscriptions();
+
+                if ($useRecurringPlugin) {
+                    $invoiceEntries = $tempInvoice->getInvoiceEntries();
+
+                    foreach ($invoiceEntries as $invoiceEntry) {
+                        if ($invoiceEntry->getRecurringAppliesTo() != 0) {
+                            //** Removed old status field from recurringfee .. We need to check if
+                            //maybe we need to add to sql to check for package status of 1 as a where clause
+                            $query = "SELECT disablegenerate, monthlyusage FROM recurringfee WHERE id = ? ";
+                            $result = $this->db->query($query, $invoiceEntry->getRecurringAppliesTo());
+                            $row = $result->fetch();
+
+                            if ($row) {
+                                //recurringfee
+                                if ($row['disablegenerate'] == '0') {
+                                    $useRecurringPlugin = 0;
+                                    break;
+                                }
+
+                                //monthly usage
+                                $monthlyusage = explode("|", $row['monthlyusage']);
+
+                                if (isset($monthlyusage[1]) && is_numeric($monthlyusage[1]) && $monthlyusage[1] > 0) {
+                                    $useRecurringPlugin = 0;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Do not start subscription if:
+                // - paying after due date
+                // - the invoice is partialy paid
+                // - there are multiple invoice entries for the same item
+                // - the invoice entries have different period start
+                if ($useRecurringPlugin && ($tempInvoice->isPartiallyPaid() || $tempInvoice->isOverdue() || $tempInvoice->hasMultipleEntriesForSameItem() || !$tempInvoice->samePeriodStartAmongEntries())) {
+                    $useRecurringPlugin = 0;
+                }
+
+                $invoiceBillingCycle = $tempInvoice->GetBillingCycle();
+                $invoiceEntriesBillingTypes = $tempInvoice->getInvoiceEntriesBillingTypes();
+                $invoiceEntriesBillingCycles = $tempInvoice->getBillingCycles();
+                $nonRecurringInvoices = true;
+                $manuallyEnteredInvoice = false;
+
+                for ($i = 0; $i < count($invoiceEntriesBillingTypes); $i++) {
+                    if ($invoiceEntriesBillingTypes[$i] < 0 || $invoiceEntriesBillingCycles[$i] > 0) {
+                        $nonRecurringInvoices = false;
+                    }
+
+                    if ($invoiceEntriesBillingTypes[$i] > 0) {
+                        $manuallyEnteredInvoice = true;
+                    }
+                }
+
+                if ((!$billingCycle = $tempInvoice->getRelatedPackageBillingCycle()) || $nonRecurringInvoices || $manuallyEnteredInvoice) {
+                    $billingCycle = $invoiceBillingCycle;
+                }
+
+                $params['billingCycle'] = $billingCycle;
+                $params['usingRecurringPlugin'] = $useRecurringPlugin;
+                $params['invoicePackageUnproratedFee'] = $tempInvoice->getPackageUnproratedRecurringFee($billingCycle);
+                $params['plugin_paypal_API Secret'] = trim($this->settings->get('plugin_paypal_API Secret'));
+                $params['invoiceProratingDays'] = $tempInvoice->hasProratedCharges();
+
+                // use subscriptions only if has package fee
+                if ($params['usingRecurringPlugin'] == '1' && isset($params['invoicePackageUnproratedFee'])) {
+                    // If prorating, avoid creating a subscription
+                    // If period is greather than 5 years (60 months), avoid creating a subscription as Paypal does not support it
+                    //     Paypal currently only support subscriptions up to 5 Years
+                    //         https://developer.paypal.com/docs/classic/paypal-payments-standard/integration-guide/Appx_websitestandard_htmlvariables/
+                    //             Allowable values for t1 and t3 are:
+                    //                 D – for days;   allowable range for p1 and p3 is 1 to 90
+                    //                 M – for months; allowable range for p1 and p3 is 1 to 24
+                    //                 Y – for years;  allowable range for p1 and p3 is 1 to 5
+                    if ($params['plugin_paypal_API Secret'] != '' && !$params['invoiceProratingDays'] && $params['billingCycle'] > 0
+                      && ($params['billingCycle'] < 12 || in_array($params['billingCycle'], array(12, 24, 36, 48, 60)))) {
+                        $subscriptionsUsed = true;
+                    }
+                }
+            }
+
+            if ($subscriptionsUsed) {
+                CE_Lib::log(4, 'Paypal getForm subscription new API');
+                return $fakeForm;
+            } else {
+                $this->view->sandboxClientID = $this->getVariable('API Client ID');
+                $this->view->productionClientID = $this->getVariable('API Client ID');
+
+                if ($this->getVariable('Use PayPal Sandbox')) {
+                    $this->view->environment = 'sandbox';
+                } else {
+                    $this->view->environment = 'production';
+                }
+
+                $this->view->amount = $params['invoiceBalanceDue'];
+                $this->view->invoiceId = $params['invoiceId'];
+                $this->view->currency = $params['currency'];
+
+                $this->view->from = $params['from'];
+                $this->view->termsConditions = $params['termsConditions'];
+
+                CE_Lib::log(4, 'Paypal getForm singlepayment new API');
+                return $this->view->render('form.phtml');
+            }
+        }
+        //NEW API CODE
+
+        CE_Lib::log(4, 'Paypal getForm old API');
+        return $fakeForm;
+    }
+
+
+    //NEW API CODE
+    function newAPIcreateSubscription($params)
+    {
+
+        // This var will be used to pass the excluded recurring fees ids for the subscription if any
+        $tRecurringExclude = '';
+
+        if ($params['invoicePackageUnproratedFee'] && count($params['invoiceExcludedRecurrings']) > 0) {
+            $tRecurringExclude = '_'.implode(',', $params['invoiceExcludedRecurrings']);
+        }
+
+        $params['new_api_custom'] = $params['invoiceNumber']."_".$params['usingRecurringPlugin']."_1".$tRecurringExclude;
+
+        $access_token = '';
+        $webhooks = array();
+        $webhookfound = false;
+        $plan_id = '';
+        $links = array();
+        $approval_url = '';
+        $execute = '';
+        $token = '';
+        $agreement_id = '';
+
+        //Get an access token
+        //https://developer.paypal.com/docs/api/overview/#get-an-access-token
+        $access_token = $this->getAnAccessToken($params);
+
+        //Pass this variable to your gateway to let it know where to send a callback.
+        $urlFix = mb_substr($params['clientExecURL'], -1, 1) == "//" ? '' : '/';
+        $callbackUrl = $params['clientExecURL'].$urlFix.'plugins/gateways/paypal/callback.php?newApi=1';
+
+        //List all webhooks
+        //https://developer.paypal.com/docs/api/webhooks/v1/#webhooks_get-all
+        $webhooks = $this->listAllWebhooks($params, $access_token);
+        foreach ($webhooks as $webhook) {
+            if ($webhook['url'] == $callbackUrl) {
+                $webhookfound = true;
+                break;
+            }
+        }
+
+        if (!$webhookfound) {
+            //Create webhook
+            //https://developer.paypal.com/docs/api/webhooks/v1/#webhooks_create
+            $this->createWebhook($params, $access_token, $callbackUrl);
+        }
+
+        //Create a plan
+        //https://developer.paypal.com/docs/subscriptions/integrate/integrate-steps/#1-create-a-plan
+        $plan_id = $this->createAPlan($params, $access_token, $callbackUrl);
+
+        //Activate a plan
+        //https://developer.paypal.com/docs/subscriptions/integrate/integrate-steps/#2-activate-a-plan
+        $this->activateAPlan($params, $access_token, $plan_id);
+
+        //Create an agreement
+        //https://developer.paypal.com/docs/subscriptions/integrate/integrate-steps/#3-create-an-agreement
+        $links = $this->createAnAgreement($params, $access_token, $plan_id);
+        foreach ($links as $link) {
+            switch ($link['rel']) {
+                case 'approval_url':
+                    $approval_url = $link['href'];
+                    break;
+                case 'execute':
+                    $execute = $link['href'];
+                    break;
+            }
+        }
+
+        //Get customer approval
+        //https://developer.paypal.com/docs/subscriptions/integrate/integrate-steps/#4-get-customer-approval
+        $this->getCustomerApproval($params, $approval_url);
+    }
+
+    //NEW API CODE
+    function newAPIcancelSubscription($params)
+    {
+        $access_token = '';
+        $agreement_id = $params['subscriptionId'];
+
+        //Get an access token
+        //https://developer.paypal.com/docs/api/overview/#get-an-access-token
+        $access_token = $this->getAnAccessToken($params);
+
+        //Pass this variable to your gateway to let it know where to send a callback.
+        $params['clientExecURL'] = CE_Lib::getSoftwareURL();
+        $urlFix = mb_substr($params['clientExecURL'], -1, 1) == "//" ? '' : '/';
+        $callbackUrl = $params['clientExecURL'].$urlFix.'plugins/gateways/paypal/callback.php?newApi=1';
+
+        //List all webhooks
+        //https://developer.paypal.com/docs/api/webhooks/v1/#webhooks_get-all
+        $webhooks = $this->listAllWebhooks($params, $access_token);
+        foreach ($webhooks as $webhook) {
+            if ($webhook['url'] == $callbackUrl) {
+                $webhookfound = true;
+                break;
+            }
+        }
+
+        if (!$webhookfound) {
+            //Create webhook
+            //https://developer.paypal.com/docs/api/webhooks/v1/#webhooks_create
+            $this->createWebhook($params, $access_token, $callbackUrl);
+        }
+
+        //Cancel agreement
+        //https://developer.paypal.com/docs/api/payments.billing-agreements/v1/#billing-agreements_cancel
+        $this->cancelAgreement($params, $access_token, $agreement_id);
+
+        $agreement = array();
+
+        //Show agreement details
+        //https://developer.paypal.com/docs/api/payments.billing-agreements/v1/#billing-agreements_get
+        $agreement = $this->showAgreementDetails($access_token, $agreement_id);
+
+        $customValues = explode("_", $agreement['description']);
+        $tInvoiceID         = $customValues[0];
+        $tIsRecurring       = $customValues[1];
+        $tGenerateInvoice   = $customValues[2];
+        $tRecurringExclude  = '';
+        if (isset($customValues[3])) {
+            $tRecurringExclude = $customValues[3];
+        }
+
+        // Create Plugin class object to interact with CE.
+        $cPlugin = new Plugin($tInvoiceID, 'paypal', $this->user);
+
+        CE_Lib::log(4, "Subscription has been cancelled.");
+        $tUser = new User($cPlugin->m_Invoice->m_UserID);
+
+        if (in_array($tUser->getStatus(), StatusAliasGateway::getInstance($this->user)->getUserStatusIdsFor(USER_STATUS_CANCELLED))) {
+            CE_Lib::log(4, 'User is already cancelled. Ignore callback.');
+        } else {
+            $subject = 'Gateway recurring payment cancelled';
+            $message = "Recurring payment for invoice $tInvoiceID has been cancelled.";
+            // If createTicket returns false it's because this transaction has already been done
+            if (!$cPlugin->createTicket($agreement['id'], $subject, $message, $tUser)) {
+                exit;
+            }
+        }
+
+        $transaction = "Paypal subscription cancelled. Original Signup Invoice: $tInvoiceID";
+        $old_processorid = '';
+        $cPlugin->resetRecurring($transaction, $agreement['id'], $tRecurringExclude, $tInvoiceID, $old_processorid);
+    }
+
+    //NEW API CODE
+    function newAPIcredit($params)
+    {
+        $access_token = '';
+        $transactionID = $params['invoiceRefundTransactionId'];
+
+        //Get an access token
+        //https://developer.paypal.com/docs/api/overview/#get-an-access-token
+        $access_token = $this->getAnAccessToken($params);
+
+        //Pass this variable to your gateway to let it know where to send a callback.
+        $urlFix = mb_substr($params['clientExecURL'], -1, 1) == "//" ? '' : '/';
+        $callbackUrl = $params['clientExecURL'].$urlFix.'plugins/gateways/paypal/callback.php?newApi=1';
+
+        //List all webhooks
+        //https://developer.paypal.com/docs/api/webhooks/v1/#webhooks_get-all
+        $webhooks = $this->listAllWebhooks($params, $access_token);
+        foreach ($webhooks as $webhook) {
+            if ($webhook['url'] == $callbackUrl) {
+                $webhookfound = true;
+                break;
+            }
+        }
+
+        if (!$webhookfound) {
+            //Create webhook
+            //https://developer.paypal.com/docs/api/webhooks/v1/#webhooks_create
+            $this->createWebhook($params, $access_token, $callbackUrl);
+        }
+
+        //Refund sale
+        //https://developer.paypal.com/docs/api/payments/v1/#sale_refund
+        $refund = $this->refundSale($params, $access_token, $transactionID);
+
+        if (strtolower($refund["state"]) == 'completed' && $refund['sale_id'] == $transactionID) {
+            // Create Plugin class object to interact with CE.
+            $cPlugin = new Plugin($params['invoiceNumber'], 'paypal', $this->user);
+
+            //Add plugin details
+            $cPlugin->setAmount($params['invoiceTotal']);
+            $cPlugin->m_TransactionID = $refund['id'];
+            $cPlugin->m_Action = "refund";
+            $cPlugin->m_Last4 = "NA";
+
+            if (isset($refund['sale_id'])) {
+                $ppParentTransID = $refund['sale_id'];
+
+                if ($cPlugin->TransExists($ppParentTransID)) {
+                    $newInvoice = $cPlugin->retrieveInvoiceForTransaction($ppParentTransID);
+
+                    if ($newInvoice && ($cPlugin->m_Invoice->isPaid() || $cPlugin->m_Invoice->isPartiallyPaid())) {
+                        $transaction = "Paypal payment of ".$params['invoiceTotal']." was refunded. Original Signup Invoice: ".$params['invoiceNumber']." (OrderID:".$refund['id'].")";
+                        $cPlugin->PaymentRefunded($params['invoiceTotal'], $transaction, $refund['id']);
+                    } elseif (!$cPlugin->m_Invoice->isRefunded()) {
+                        CE_Lib::log(1, 'Related invoice not found or not set as paid on the application, when doing the refund');
+                    }
+                } else {
+                    CE_Lib::log(1, 'Parent transaction id not matching any existing invoice on the application, when doing the refund');
+                }
+            } else {
+                CE_Lib::log(1, 'Callback not returning parent_txn_id when refunding');
+            }
+
+            return array('AMOUNT' => $params['invoiceTotal']);
+        } else {
+            CE_Lib::log(4, 'Error with PayPal Refund: ' . print_r($refund, true));
+            return 'Error with PayPal Refund';
+        }
+    }
+
+    //NEW API CODE
+    //Get an access token
+    //https://developer.paypal.com/docs/api/overview/#get-an-access-token
+    private function getAnAccessToken($params)
+    {
+        $request = 'oauth2/token';
+
+        //API Credentials
+        if ($params['plugin_paypal_API Client ID'] == '' || $params['plugin_paypal_API Secret'] == '') {
+            throw new CE_Exception('You must fill out the Required to use the new API and Required to do subscriptions using the new API Sections of the PayPal configuration to create and cancel Paypal Subscriptions using the new API.');
+        }
+
+        $client_id = trim($params['plugin_paypal_API Client ID']);
+        $secret = trim($params['plugin_paypal_API Secret']);
+
+        $header = array(
+            'Accept: application/json',
+            'Accept-Language: en_US',
+            'Authorization: Basic '.base64_encode($client_id.':'.$secret)
+        );
+
+        $data = 'grant_type=client_credentials';
+        CE_Lib::log(4, 'Paypal Params getAnAccessToken: ' . print_r($data, true));
+        $type = 'POST';
+        $acceptHTTPcode = false;
+
+        $return = $this->makeRequest($request, $header, $data, $type, $acceptHTTPcode);
+
+        if (!isset($return['access_token'])) {
+            throw new CE_Exception('Get an access token has failed');
+        }
+
+        return $return['access_token'];
+    }
+
+    //NEW API CODE
+    //List all webhooks
+    //https://developer.paypal.com/docs/api/webhooks/v1/#webhooks_get-all
+    private function listAllWebhooks($params, $access_token)
+    {
+        $request = 'notifications/webhooks';
+
+        $header = array(
+            'Content-Type: application/json',
+            'Authorization: Bearer '.$access_token
+        );
+
+        $data = false;
+        CE_Lib::log(4, 'Paypal Params listAllWebhooks: ' . print_r($data, true));
+        $type = 'GET';
+        $acceptHTTPcode = false;
+
+        $return = $this->makeRequest($request, $header, $data, $type, $acceptHTTPcode);
+
+        if (!isset($return['webhooks'])) {
+            throw new CE_Exception('List all webhooks has failed');
+        }
+
+        return $return['webhooks'];
+    }
+
+    //NEW API CODE
+    //Create webhook
+    //https://developer.paypal.com/docs/api/webhooks/v1/#webhooks_create
+    private function createWebhook($params, $access_token, $callbackUrl)
+    {
+        $request = 'notifications/webhooks';
+
+        $header = array(
+            'Content-Type: application/json',
+            'Authorization: Bearer '.$access_token
+        );
+
+        //As there is no 'custom' field, we will use the value as the name and description of the plan. Not sure if we will get it back that way.
+        $data = array(
+            'url'         => $callbackUrl,
+            'event_types' => array(
+                array(
+                    "name" => "*"
+                )
+            )
+        );
+        CE_Lib::log(4, 'Paypal Params createWebhook: ' . print_r($data, true));
+        $data = json_encode($data);
+        $type = 'POST';
+        $acceptHTTPcode = false;
+
+        $return = $this->makeRequest($request, $header, $data, $type, $acceptHTTPcode);
+
+        if (!isset($return['url']) || $return['url'] !== $callbackUrl) {
+            throw new CE_Exception('Create webhook has failed');
+        }
+
+        return $return['url'];
+    }
+
+
+    //NEW API CODE
+    //Create a plan
+    //https://developer.paypal.com/docs/subscriptions/integrate/integrate-steps/#1-create-a-plan
+    //https://developer.paypal.com/docs/api/payments.billing-plans/v1/
+    //https://developer.paypal.com/docs/api/payments.billing-plans/v1/#definition-merchant_preferences
+    private function createAPlan($params, $access_token, $callbackUrl)
+    {
+        $request = 'payments/billing-plans/';
+
+        $header = array(
+            'Content-Type: application/json',
+            'Authorization: Bearer '.$access_token
+        );
+
+        //Need to check to see if user is coming from signup
+        if ($params['isSignup'] == 1) {
+            $return_url = $callbackUrl.'&isSignup=1';
+
+            if ($this->settings->get('Signup Completion URL') != '') {
+                $cancel_url = $this->settings->get('Signup Completion URL');
+            } else {
+                $cancel_url = $params["clientExecURL"].'/order.php?step=3';
+            }
+        } else {
+            $return_url = $callbackUrl.'&isSignup=0';
+            $cancel_url = $params['invoiceviewURLCancel'];
+        }
+
+        if (!$params['invoicePackageUnproratedFee']) {
+            // if invoicePackageUnproratedFee is 0, it means this is not a package invoice, so the invoiceTotal will be the same charge always
+            $tRecurringTotal = $params['invoiceTotal'];
+        } else {
+            $tRecurringTotal = $params['invoicePackageUnproratedFee'];
+        }
+
+        if ($params['billingCycle'] < 12) {
+            $initialPeriodLength = $params['billingCycle'];
+            $initialPeriodUnits = 'MONTH';
+        } elseif (in_array($params['billingCycle'], array(12, 24, 36, 48, 60))) {
+            $initialPeriodLength = round($params['billingCycle'] / 12);
+            $initialPeriodUnits = 'YEAR';
+        }
+
+        //As there is no 'custom' field, we will use the value as the name and description of the plan. Not sure if we will get it back that way.
+        $data = array(
+            'name'                 => $params['new_api_custom'],
+            'description'          => $params['new_api_custom'],
+            'type'                 => 'INFINITE',
+            'payment_definitions'  => array(
+                array(
+                    'name'               => 'Regular payment definition',
+                    'type'               => 'REGULAR',
+                    'frequency'          => $initialPeriodUnits,
+                    'frequency_interval' => $initialPeriodLength,
+                    'cycles'             => '0',
+                    'amount'             => array(
+                        'value'    => sprintf("%01.2f", round($tRecurringTotal, 2)),
+                        'currency' => $params["currencytype"]
+                    )
+                )
+            ),
+            'merchant_preferences' => array(
+                'setup_fee' => array(
+                    'value'    => sprintf("%01.2f", round($params['invoiceTotal'], 2)),
+                    'currency' => $params["currencytype"]
+                ),
+                'return_url' => $return_url,
+                'cancel_url' => $cancel_url
+            )
+        );
+        CE_Lib::log(4, 'Paypal Params createAPlan: ' . print_r($data, true));
+        $data = json_encode($data);
+        $type = 'POST';
+        $acceptHTTPcode = false;
+
+        $return = $this->makeRequest($request, $header, $data, $type, $acceptHTTPcode);
+
+        if (!isset($return['id'])) {
+            throw new CE_Exception('Create a plan has failed');
+        }
+
+        return $return['id'];
+    }
+
+    //NEW API CODE
+    //Activate a plan
+    //https://developer.paypal.com/docs/subscriptions/integrate/integrate-steps/#2-activate-a-plan
+    private function activateAPlan($params, $access_token, $plan_id)
+    {
+        $request = 'payments/billing-plans/'.$plan_id.'/';
+
+        $header = array(
+            'Content-Type: application/json',
+            'Authorization: Bearer '.$access_token
+        );
+
+        $data = array(
+            array(
+                'op'    => 'replace',
+                'path'  => '/',
+                'value' => array(
+                    'state' => 'ACTIVE'
+                )
+            )
+        );
+        CE_Lib::log(4, 'Paypal Params activateAPlan: ' . print_r($data, true));
+        $data = json_encode($data);
+        $type = 'PATCH';
+        $acceptHTTPcode = array(200);
+
+        $this->makeRequest($request, $header, $data, $type, $acceptHTTPcode);
+    }
+
+    //NEW API CODE
+    //Create an agreement
+    //https://developer.paypal.com/docs/subscriptions/integrate/integrate-steps/#3-create-an-agreement
+    //https://developer.paypal.com/docs/api/payments.billing-agreements/v1/#billing-agreements_create
+    private function createAnAgreement($params, $access_token, $plan_id)
+    {
+        $request = 'payments/billing-agreements/';
+
+        $header = array(
+            'Content-Type: application/json',
+            'Authorization: Bearer '.$access_token
+        );
+
+        //The start date must be no less than 24 hours after the current date as the agreement can take up to 24 hours to activate.
+        //We are charging the first invoice amount as the setup_fee for the Plan, and the recurring charges will start on the next billing cycle, so start_date will be set to the next due date
+        if ($params['billingCycle'] < 12) {
+            $initialPeriodLength = $params['billingCycle'];
+            $initialPeriodUnits = 'months';
+        } elseif (in_array($params['billingCycle'], array(12, 24, 36, 48, 60))) {
+            $initialPeriodLength = round($params['billingCycle'] / 12);
+            $initialPeriodUnits = 'years';
+        }
+
+        $start_date_iso_string = date('c', strtotime('+'.$initialPeriodLength.' '.$initialPeriodUnits));
+
+        //As there is no 'custom' field, we will use the value as the name and description of the agreement. Not sure if we will get it back that way.
+        $data = array(
+            'name'             => $params['new_api_custom'],
+            'description'      => $params['new_api_custom'],
+            'start_date'       => $start_date_iso_string,
+            'plan'             => array(
+                'id' => $plan_id
+            ),
+            'payer'            => array(
+                'payment_method' => 'paypal'
+            )
+        );
+        CE_Lib::log(4, 'Paypal Params createAnAgreement: ' . print_r($data, true));
+        $data = json_encode($data);
+        $type = 'POST';
+        $acceptHTTPcode = false;
+
+        $return = $this->makeRequest($request, $header, $data, $type, $acceptHTTPcode);
+
+        if (!isset($return['links'])) {
+            throw new CE_Exception('Create an agreement has failed');
+        }
+
+        return $return['links'];
+    }
+
+    //NEW API CODE
+    //Get customer approval
+    //https://developer.paypal.com/docs/subscriptions/integrate/integrate-steps/#4-get-customer-approval
+    private function getCustomerApproval($params, $approval_url)
+    {
+        header('Location: '.$approval_url);
+        exit;
+    }
+
+    //NEW API CODE
+    //Cancel agreement
+    //https://developer.paypal.com/docs/api/payments.billing-agreements/v1/#billing-agreements_cancel
+    private function cancelAgreement($params, $access_token, $agreement_id)
+    {
+        $request = 'payments/billing-agreements/'.$agreement_id.'/cancel';
+
+        $header = array(
+            'Content-Type: application/json',
+            'Authorization: Bearer '.$access_token
+        );
+
+        //As there is no 'custom' field, we will use the value in the note of the agreement cancellation. Not sure if it can help as a reference or not.
+        $data = array(
+            'note' => 'Canceling '.$params['new_api_custom']    //Maximum length: 128
+        );
+        CE_Lib::log(4, 'Paypal Params cancelAgreement: ' . print_r($data, true));
+        $data = json_encode($data);
+        $type = 'POST';
+        $acceptHTTPcode = array(204);
+
+        $this->makeRequest($request, $header, $data, $type, $acceptHTTPcode);
+    }
+
+    //NEW API CODE
+    //Show agreement details
+    //https://developer.paypal.com/docs/api/payments.billing-agreements/v1/#billing-agreements_get
+    private function showAgreementDetails($access_token, $subscriptionID)
+    {
+        $request = 'payments/billing-agreements/'.$subscriptionID;
+
+        $header = array(
+            'Content-Type: application/json',
+            'Authorization: Bearer '.$access_token
+        );
+
+        $data = false;
+        CE_Lib::log(4, 'Paypal Params showAgreementDetails: ' . print_r($data, true));
+        $type = 'GET';
+        $acceptHTTPcode = false;
+
+        $return = $this->makeRequest($request, $header, $data, $type, $acceptHTTPcode);
+
+        if (!isset($return['id'])) {
+            throw new CE_Exception('Show agreement details has failed. "id" is not defined');
+        }
+        if (!isset($return['description'])) {
+            throw new CE_Exception('Show agreement details has failed. "description" is not defined');
+        }
+        if (!isset($return['start_date'])) {
+            throw new CE_Exception('Show agreement details has failed. "start_date" is not defined');
+        }
+        if (!isset($return['payer']['payer_info']['email'])) {
+            throw new CE_Exception('Show agreement details has failed. "payer" => "payer_info" => "email" is not defined');
+        }
+
+        return $return;
+    }
+
+    //NEW API CODE
+    //Refund sale
+    //https://developer.paypal.com/docs/api/payments/v1/#sale_refund
+    private function refundSale($params, $access_token, $transactionID)
+    {
+        $request = 'payments/sale/'.$transactionID.'/refund';
+
+        $header = array(
+            'Content-Type: application/json',
+            'Authorization: Bearer '.$access_token
+        );
+
+        //As there is no 'custom' field, we will use the value in the note of the agreement cancellation. Not sure if it can help as a reference or not.
+        $data = array(
+            'description' => 'Refund of Invoice #'.$params['invoiceNumber']    //The refund description. Value is a string of single-byte alphanumeric characters. Maximum length: 255
+        );
+        CE_Lib::log(4, 'Paypal Params refundSale: ' . print_r($data, true));
+        $data = json_encode($data);
+        $type = 'POST';
+        $acceptHTTPcode = false;
+
+        $return = $this->makeRequest($request, $header, $data, $type, $acceptHTTPcode);
+
+        if (!isset($return['id'])) {
+            throw new CE_Exception('Refund sale has failed. "id" is not defined');
+        }
+        if (!isset($return['sale_id'])) {
+            throw new CE_Exception('Refund sale has failed. "sale_id" is not defined');
+        }
+        if (!isset($return['state'])) {
+            throw new CE_Exception('Refund sale has failed. "state" is not defined');
+        }
+
+        return $return;
+    }
+
+    //NEW API CODE
+    private function makeRequest($request, $header, $data = false, $type = 'POST', $acceptHTTPcode = false)
+    {
+        $sandbox = '';
+        if ($this->settings->get('plugin_paypal_Use PayPal Sandbox') == '1') {
+            $sandbox = 'sandbox.';
+        }
+        $url = 'https://api.'.$sandbox.'paypal.com/v1/'.$request;
+
+        CE_Lib::log(4, 'Making request to: ' . $url);
+        $ch = curl_init($url);
+
+        switch ($type) {
+            case 'POST':
+                curl_setopt($ch, CURLOPT_POST, 1);
+                break;
+            case 'PATCH':
+                curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PATCH');
+                break;
+            case 'GET':
+                break;
+        }
+
+        if ($data !== false) {
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+        }
+
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
+        curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+
+        // Turn off the server and peer verification (TrustManager Concept).
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, FALSE);
+
+        $response = curl_exec($ch);
+
+        if (!$response) {
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            CE_Lib::log(4, 'Paypal Response HTTP Code: ' . print_r($httpCode, true));
+
+            if (!$acceptHTTPcode || !in_array($httpCode, $acceptHTTPcode)) {
+                throw new CE_Exception('cURL Paypal Error: '.curl_error($ch).' ('.curl_errno($ch).')');
+            }
+        } else {
+            $response = json_decode($response, true);
+            CE_Lib::log(4, 'Paypal Response: ' . print_r($response, true));
+        }
+
+        curl_close($ch);
+
+        return $response;
+    }
 }
-?>

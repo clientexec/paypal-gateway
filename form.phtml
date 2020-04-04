@@ -1,0 +1,142 @@
+<?php $pluginFolderName = basename(dirname(__FILE__)); ?>
+<input type="hidden" id="<?php echo $pluginFolderName; ?>_Transaction_ID" name="<?php echo $pluginFolderName; ?>_plugincustomfields[<?php echo $pluginFolderName; ?>_Transaction_ID]" value="">
+<input type="hidden" id="<?php echo $pluginFolderName; ?>_Transaction_State" name="<?php echo $pluginFolderName; ?>_plugincustomfields[<?php echo $pluginFolderName; ?>_Transaction_State]" value="">
+<input type="hidden" id="<?php echo $pluginFolderName; ?>_Transaction_Amount" name="<?php echo $pluginFolderName; ?>_plugincustomfields[<?php echo $pluginFolderName; ?>_Transaction_Amount]" value="">
+<input type="hidden" id="<?php echo $pluginFolderName; ?>_Transaction_Currency" name="<?php echo $pluginFolderName; ?>_plugincustomfields[<?php echo $pluginFolderName; ?>_Transaction_Currency]" value="">
+
+<script src="https://www.paypalobjects.com/api/checkout.js"></script>
+<?php if ($this->from == 'signup') { ?>
+    <a style="margin-left:0px;cursor:pointer;" class="btn-success btn btn-lg customButton center-on-mobile <?php echo $pluginFolderName; ?>Button <?php if (@$this->termsConditions) {
+?>disabled<?php
+} ?>" id="customButton"></a>
+<?php } elseif ($this->from == 'invoice') { ?>
+    <button style="margin-left:0px;cursor:pointer;" class="pull-right btn btn-default btn-lg customButton <?php echo $pluginFolderName; ?>Button"><?php echo $this->user->lang('Pay Invoice'); ?></button>
+<?php } ?>
+
+<div id="paypal-button-show-hide" style="display: none;">
+    <div id="paypal-button"></div>
+</div>
+
+<script data-cfasync="false" type="text/javascript">
+        // Render the PayPal button
+        paypal.Button.render({
+            // Set your environment
+            env: '<?php echo $this->environment; ?>',
+
+        // PayPal Client IDs - replace with your own
+        // Create a PayPal app: https://developer.paypal.com/developer/applications/create
+            client: {
+                sandbox: '<?php echo $this->sandboxClientID; ?>',
+                production: '<?php echo $this->productionClientID; ?>'
+            },
+
+            // Customize button (optional)
+            locale: 'en_US',
+
+            // Specify the style of the button
+            style: {
+                layout: 'horizontal', // horizontal | vertical
+                size:   'medium',     // small | medium | large | responsive
+                shape:  'rect',       // pill | rect
+                color:  'gold'        // gold | blue | silver | black
+            },
+
+            //Display "Pay Now" button
+            commit: true,
+
+            // Set up a payment
+            payment: function (data, actions) {
+                return actions.payment.create({
+                    transactions: [{
+                        <?php if ($this->from == 'invoice') { ?>
+                            amount: {
+                                total: '<?php echo sprintf("%01.2f", round($this->amount, 2)); ?>',
+                                currency: '<?php echo $this->currency;?>'
+                            },
+                            description: '<?php echo $this->user->lang("Invoice")." #".$this->invoiceId;?>',
+                        <?php } elseif ($this->from == 'signup') { ?>
+                            amount: {
+                                total: Number(document.getElementById("totalPay_raw").value).toFixed(2),
+                                currency: '<?php echo $this->Currency;?>'
+                            },
+                            description: '<?php echo $this->user->lang("New Order");?>',
+                        <?php } ?>
+                    }]
+                });
+            },
+
+            // Execute the payment
+            onAuthorize: function (data, actions) {
+                return actions.payment.execute()
+                    .then(function (data2) {
+                        document.getElementById('<?php echo $pluginFolderName; ?>_Transaction_ID').value = data2.transactions[0].related_resources[0].sale.id;
+                        document.getElementById('<?php echo $pluginFolderName; ?>_Transaction_State').value = data2.transactions[0].related_resources[0].sale.state;
+                        document.getElementById('<?php echo $pluginFolderName; ?>_Transaction_Amount').value = data2.transactions[0].related_resources[0].sale.amount.total;
+                        document.getElementById('<?php echo $pluginFolderName; ?>_Transaction_Currency').value = data2.transactions[0].related_resources[0].sale.amount.currency;
+
+                        <?php if ($this->from == 'invoice' || $this->from == 'signup') { ?>
+                            $('#submitButton').click();
+                        <?php } ?>
+                    });
+    //            return actions.redirect();
+            },
+            onCancel: function (data, actions) {
+                $('#paypal-button-show-hide').hide();
+                $('.<?php echo $pluginFolderName; ?>Button').show();
+                //return actions.close();
+                //return actions.redirect();
+            },
+            onError: function (error) {
+              // You will want to handle this differently
+              //console.log(error);
+              RichHTML.error('<?php echo $this->user->lang("An internal service error has occurred in Paypal. Please try again");?>');
+            }
+        }, '#paypal-button');
+
+    $('.<?php echo $pluginFolderName; ?>Button').on('click', function(e) {
+        <?php if ($this->from == 'signup') { ?>
+            if ($('.<?php echo $pluginFolderName; ?>Button').hasClass('disabled')) {
+                return;
+            }
+
+            var password_validated = true;
+
+            <?php if (!$this->loggedIn) { ?>
+                $('.parsley-error-list.help-block').parent().removeClass('has-error');
+                $('.parsley-error-list.help-block').remove();
+                e.preventDefault();
+
+                //let's validate remote data
+                if ($('#password').length > 0) {
+                    if ($.trim($('#password').val()) == "") return;
+                    $.ajax({
+                        type: "POST",
+                        data: {"password": $('#password').val()},
+                        url: 'index.php?controller=signup&fuse=admin&action=testpasswordstrength',
+                        async: false,
+                        success : function(response) {
+                            json = ce.parseResponse(response);
+                            if (!json.valid) {
+                                password_validated = false;
+                                $('#password').parent().addClass('has-error');
+                                $('#password').after('<span class="help-block parsley-error-list">'+json.errorMessage+'</span>');
+                                $('#password').get(0).scrollIntoView();
+                            }
+                        }
+                    });
+                }
+            <?php } ?>
+
+            if (password_validated && $('#submitForm').parsley('validate')) {
+        <?php } ?>
+
+        $('.<?php echo $pluginFolderName; ?>Button').hide();
+        $('#paypal-button-show-hide').show();
+
+        <?php if ($this->from == 'signup') { ?>
+            }
+        <?php } ?>
+
+        e.preventDefault();
+    });
+</script>
