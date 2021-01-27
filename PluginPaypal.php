@@ -2,6 +2,7 @@
 require_once 'modules/admin/models/GatewayPlugin.php';
 require_once 'modules/billing/models/class.gateway.plugin.php';
 require_once 'modules/billing/models/Currency.php';
+require_once 'modules/billing/models/BillingCycle.php';
 
 /**
 * @package Plugins
@@ -28,7 +29,7 @@ class PluginPaypal extends GatewayPlugin
             ),
             lang('Invoice After Signup') => array(
                 'type'        => 'yesno',
-                'description' => lang('Select YES if you want an invoice sent to the customer after signup is complete.'),
+                'description' => lang('Select YES if you want an invoice sent to the client after signup is complete.'),
                 'value'       => '1'
             ),
             lang('Use PayPal Sandbox') => array(
@@ -38,7 +39,7 @@ class PluginPaypal extends GatewayPlugin
             ),
             lang('Paypal Subscriptions Option')=> array(
                 'type'        => 'options',
-                'description' => lang('Determine if you are going to use subscriptions for recurring charges.<ul><li>Please avoid using <b>"Duration in months"</b> in your recurring fees if you are planning to use Paypal Subscriptions. The subscription will be unlimited until manually canceled either by you, your client or Paypal if lack of funds, etc.</li><li>Subscriptions will be created after a payment is completed by the customer, as long as the invoice was paid before becoming overdue.</li><li>Subscriptions will not be created if the invoice has prorated items, or with billing cycles greater than 5 years.</li></ul>'),
+                'description' => lang('Determine if you are going to use subscriptions for recurring charges.<ul><li>Please avoid using <b>"Duration in months"</b> in your recurring fees if you are planning to use Paypal Subscriptions. The subscription will be unlimited until manually canceled either by you, your client or Paypal if lack of funds, etc.</li><li>Subscriptions will be created after a payment is completed by the client, as long as the invoice was paid before becoming overdue.</li><li>Subscriptions will not be created if the invoice has prorated items, or with billing cycles greater than 5 years (Old API), or with billing cycles greater than 1 year (New API).</li></ul>'),
                 'options'     => array(
                     0 => lang('Use subscriptions'),
                     1 => lang('Do not use subscriptions')
@@ -101,12 +102,16 @@ class PluginPaypal extends GatewayPlugin
     {
         //NEW API CODE
         if ($params['plugin_paypal_API Client ID'] != '') {
-            $this->newAPIcancelSubscription($params);
-            return;
+            return $this->newAPIcancelSubscription($params);
         }
         //NEW API CODE
 
-        if ( $params['plugin_paypal_API Username'] == '' || $params['plugin_paypal_API Password'] == '' || $params['plugin_paypal_API Signature'] == '' ) {
+        return $this->oldAPIcancelSubscription($params);
+    }
+
+    function oldAPIcancelSubscription($params)
+    {
+        if ($params['plugin_paypal_API Username'] == '' || $params['plugin_paypal_API Password'] == '' || $params['plugin_paypal_API Signature'] == '') {
             throw new CE_Exception('You must fill out the API Section of the PayPal configuration to Cancel Paypal Subscriptions.');
         }
 
@@ -115,11 +120,35 @@ class PluginPaypal extends GatewayPlugin
         $requestString = "&PROFILEID={$subscriptionId}&ACTION=Cancel&NOTE={$memo}";
         $response = $this->sendRequest('ManageRecurringPaymentsProfileStatus ', $requestString, $params);
 
+        //If it has an invalid status, assume it was already canceled
+        //https://developer.paypal.com/docs/nvp-soap-api/errors/
+        if (isset($response['L_ERRORCODE0']) && in_array($response['L_ERRORCODE0'], array(11556))) {
+            $this->removeSubscriptionReference($subscriptionId);
+            return;
+        }
+
+        //If "The profile ID is invalid" or "Merchant account is denied" and not using the new API, ask to configure it
+        //https://developer.paypal.com/docs/nvp-soap-api/errors/
+        if (isset($response['L_ERRORCODE0']) && in_array($response['L_ERRORCODE0'], array(11552, 11546)) && $params['plugin_paypal_API Client ID'] == '') {
+            $errorMessage = 'Error with PayPal Cancel Subscription. Please take a look at your Paypal plugin configuration and set valid values for "API Client ID" and "API Secret", then try canceling again.';
+            CE_Lib::log(4, $errorMessage);
+            return $errorMessage;
+        }
+
         if (!in_array(strtoupper($response["ACK"]), array('SUCCESS', 'SUCCESSWITHWARNING'))) {
             $errorMessage = urldecode($response['L_LONGMESSAGE0']);
             CE_Lib::log(4, 'Error with PayPal Cancel Subscription: ' . print_r($response, true));
             return $errorMessage;
         }
+    }
+
+    function removeSubscriptionReference($subscription_id)
+    {
+        $query = "UPDATE recurringfee SET subscription_id = '', disablegenerate = 0 WHERE subscription_id = ? ";
+        $this->db->query($query, $subscription_id);
+
+        $query2 = "UPDATE invoice SET subscription_id = '' WHERE status IN (0, 4) AND subscription_id = ? ";
+        $this->db->query($query2, $subscription_id);
     }
 
     function credit($params)
@@ -131,7 +160,7 @@ class PluginPaypal extends GatewayPlugin
         }
         //NEW API CODE
 
-        if ( $params['plugin_paypal_API Username'] == '' || $params['plugin_paypal_API Password'] == '' || $params['plugin_paypal_API Signature'] == '' ) {
+        if ($params['plugin_paypal_API Username'] == '' || $params['plugin_paypal_API Password'] == '' || $params['plugin_paypal_API Signature'] == '') {
             throw new CE_Exception('You must fill out the API Section of the PayPal configuration to do PayPal refunds.');
         }
 
@@ -170,8 +199,8 @@ class PluginPaypal extends GatewayPlugin
         curl_setopt($ch, CURLOPT_VERBOSE, 1);
 
         // Turn off the server and peer verification (TrustManager Concept).
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, FALSE);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
 
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_POST, 1);
@@ -209,6 +238,8 @@ class PluginPaypal extends GatewayPlugin
 
     function singlepayment($params, $test = false)
     {
+        $billingCycleObject = new BillingCycle($params['billingCycle']);
+
         //NEW API CODE
         if ($params['plugin_paypal_API Client ID'] != '') {
             $subscriptionsUsed = false;
@@ -221,10 +252,15 @@ class PluginPaypal extends GatewayPlugin
                 //         https://developer.paypal.com/docs/classic/paypal-payments-standard/integration-guide/Appx_websitestandard_htmlvariables/
                 //             Allowable values for t1 and t3 are:
                 //                 D – for days;   allowable range for p1 and p3 is 1 to 90
+                //                 W - for weeks;  allowable range for p1 and p3 is 1 to 52
                 //                 M – for months; allowable range for p1 and p3 is 1 to 24
                 //                 Y – for years;  allowable range for p1 and p3 is 1 to 5
-                if ($params['plugin_paypal_API Secret'] != '' && !$params['invoiceProratingDays'] && $params['billingCycle'] > 0
-                  && ($params['billingCycle'] < 12 || in_array($params['billingCycle'], array(12, 24, 36, 48, 60)))) {
+                // However, in the new API, for frequency_interval, value cannot be greater than 12 months.
+                if ($params['plugin_paypal_API Secret'] != '' && !$params['invoiceProratingDays'] && $billingCycleObject->amount_of_units > 0
+                  && (($billingCycleObject->time_unit == 'd' && $billingCycleObject->amount_of_units <= 90)
+                   || ($billingCycleObject->time_unit == 'w' && $billingCycleObject->amount_of_units <= 52)
+                   || ($billingCycleObject->time_unit == 'm' && $billingCycleObject->amount_of_units <= 12)
+                   || ($billingCycleObject->time_unit == 'y' && $billingCycleObject->amount_of_units <= 1))) {
                     $subscriptionsUsed = true;
                 }
 
@@ -266,7 +302,7 @@ class PluginPaypal extends GatewayPlugin
         //determine if this is a single payment
         // We will ignore the domain subscription. Billing has become complicated.
         // Good part is, the subcription will be created in the next payment, and using the renewal value
-        if (!$params['billingCycle']) {
+        if ($billingCycleObject->amount_of_units == 0) {
             $params['usingRecurringPlugin'] = 0;
         }
         //echo "<pre>";print_r($params);echo "</pre>\n";
@@ -278,8 +314,6 @@ class PluginPaypal extends GatewayPlugin
 
         // use subscriptions only if has package fee
         if ($params['usingRecurringPlugin'] == '1' && isset($params['invoicePackageUnproratedFee'])) {
-            $billingCycle = $params['billingCycle'];
-
             // paypal only accepts two decimals
             $initialAmount = sprintf("%01.2f", round($params['invoiceTotal'], 2));
 
@@ -304,22 +338,43 @@ class PluginPaypal extends GatewayPlugin
             //         https://developer.paypal.com/docs/classic/paypal-payments-standard/integration-guide/Appx_websitestandard_htmlvariables/
             //             Allowable values for t1 and t3 are:
             //                 D – for days;   allowable range for p1 and p3 is 1 to 90
+            //                 W - for weeks;  allowable range for p1 and p3 is 1 to 52
             //                 M – for months; allowable range for p1 and p3 is 1 to 24
             //                 Y – for years;  allowable range for p1 and p3 is 1 to 5
-            if (!$params['invoiceProratingDays'] && $billingCycle > 0 && $billingCycle <= 60) {
+
+            if (!$params['invoiceProratingDays'] && $billingCycleObject->amount_of_units > 0
+              && (($billingCycleObject->time_unit == 'd' && $billingCycleObject->amount_of_units <= 90)
+               || ($billingCycleObject->time_unit == 'w' && $billingCycleObject->amount_of_units <= 52)
+               || ($billingCycleObject->time_unit == 'm' && $billingCycleObject->amount_of_units <= 24)
+               || ($billingCycleObject->time_unit == 'y' && $billingCycleObject->amount_of_units <= 5))) {
                 // First we normalize the timestamps to midnight
                 $dueDate = mktime(0, 0, 0, date('m', $params['invoiceDueDate']), date('d', $params['invoiceDueDate']), date('Y', $params['invoiceDueDate']));
 
-                if ($billingCycle < 12) {
-                    //M – for months; allowable range for p1 and p3 is 1 to 24
-                    $initialPeriodLength = $billingCycle;
-                    $initialPeriodUnits = 'M';
-                    $subscriptionsUsed = true;
-                } elseif (in_array($billingCycle, array(12, 24, 36, 48, 60))) {
-                    //Y – for years; allowable range for p1 and p3 is 1 to 5
-                    $initialPeriodLength = round($billingCycle / 12);
-                    $initialPeriodUnits = 'Y';
-                    $subscriptionsUsed = true;
+                switch ($billingCycleObject->time_unit) {
+                    case 'd':
+                        //D – for days; allowable range for p1 and p3 is 1 to 90
+                        $initialPeriodLength = $billingCycleObject->amount_of_units;
+                        $initialPeriodUnits = 'D';
+                        $subscriptionsUsed = true;
+                        break;
+                    case 'w':
+                        //W - for weeks; allowable range for p1 and p3 is 1 to 52
+                        $initialPeriodLength = $billingCycleObject->amount_of_units;
+                        $initialPeriodUnits = 'W';
+                        $subscriptionsUsed = true;
+                        break;
+                    case 'm':
+                        //M – for months; allowable range for p1 and p3 is 1 to 24
+                        $initialPeriodLength = $billingCycleObject->amount_of_units;
+                        $initialPeriodUnits = 'M';
+                        $subscriptionsUsed = true;
+                        break;
+                    case 'y':
+                        //Y – for years; allowable range for p1 and p3 is 1 to 5
+                        $initialPeriodLength = $billingCycleObject->amount_of_units;
+                        $initialPeriodUnits = 'Y';
+                        $subscriptionsUsed = true;
+                        break;
                 }
             }
 
@@ -366,7 +421,6 @@ class PluginPaypal extends GatewayPlugin
         if ($params['isSignup']==1) {
             // Actually handle the signup URL setting
             if ($this->settings->get('Signup Completion URL') != '') {
-
                 $returnURL=$this->settings->get('Signup Completion URL'). '?success=1';
                 $returnURL_Cancel=$this->settings->get('Signup Completion URL');
             } else {
@@ -497,7 +551,7 @@ class PluginPaypal extends GatewayPlugin
     //NEW API CODE
     public function getForm($params)
     {
-        if ( $params['from'] == 'paymentmethod' ) {
+        if ($params['from'] == 'paymentmethod') {
             return '';
         }
 
@@ -522,32 +576,74 @@ class PluginPaypal extends GatewayPlugin
                     $useRecurringPlugin = 1;
                 }
 
+                $invoiceBillingCycleInDays = 0;
                 $invoiceBillingCycle = 0;
+                $billingCycleInDays = 0;
                 $billingCycle = 0;
 
                 foreach ($params['cartsummary']['cartItems'] as $cartItem) {
-                    if ($invoiceBillingCycle < $cartItem['trueTerm']) {
+                    $billingCycleObject = new BillingCycle($cartItem['trueTerm']);
+                    $periodLengthInDays = 0;
+
+                    switch ($billingCycleObject->time_unit) {
+                        case 'd':
+                            $periodLengthInDays = 1;
+                            break;
+                        case 'w':
+                            $periodLengthInDays = 7;
+                            break;
+                        case 'm':
+                            $periodLengthInDays = 30;
+                            break;
+                        case 'y':
+                            $periodLengthInDays = 365;
+                            break;
+                    }
+
+                    if ($invoiceBillingCycleInDays < ($billingCycleObject->amount_of_units * $periodLengthInDays)) {
+                        $invoiceBillingCycleInDays = $billingCycleObject->amount_of_units * $periodLengthInDays;
                         $invoiceBillingCycle = $cartItem['trueTerm'];
                     }
 
-                    if ($billingCycle < $cartItem['trueTerm']) {
+                    if ($billingCycleInDays < ($billingCycleObject->amount_of_units * $periodLengthInDays)) {
+                        $billingCycleInDays = $billingCycleObject->amount_of_units * $periodLengthInDays;
                         $billingCycle = $cartItem['trueTerm'];
                     }
 
                     if (isset($cartItem['hasAddons']) && $cartItem['hasAddons']) {
                         foreach ($cartItem['addons'] as $cartAddon) {
-                            if ($invoiceBillingCycle < $cartAddon['recurringprice_cyle']) {
+                            $addonBillingCycleObject = new BillingCycle($cartAddon['recurringprice_cyle']);
+                            $addonPeriodLengthInDays = 0;
+
+                            switch ($addonBillingCycleObject->time_unit) {
+                                case 'd':
+                                    $addonPeriodLengthInDays = 1;
+                                    break;
+                                case 'w':
+                                    $addonPeriodLengthInDays = 7;
+                                    break;
+                                case 'm':
+                                    $addonPeriodLengthInDays = 30;
+                                    break;
+                                case 'y':
+                                    $addonPeriodLengthInDays = 365;
+                                    break;
+                            }
+
+                            if ($invoiceBillingCycleInDays < ($addonBillingCycleObject->amount_of_units * $addonPeriodLengthInDays)) {
+                                $invoiceBillingCycleInDays = $addonBillingCycleObject->amount_of_units * $addonPeriodLengthInDays;
                                 $invoiceBillingCycle = $cartAddon['recurringprice_cyle'];
                             }
                         }
                     }
                 }
 
-                if (!$billingCycle) {
+                if (!$billingCycleInDays) {
                     $billingCycle = $invoiceBillingCycle;
                 }
 
                 $params['billingCycle'] = $billingCycle;
+                $newBillingCycleObject = new BillingCycle($params['billingCycle']);
                 $params['usingRecurringPlugin'] = $useRecurringPlugin;
                 $params['plugin_paypal_API Secret'] = trim($this->settings->get('plugin_paypal_API Secret'));
                 $params['invoiceProratingDays'] = (isset($params['cartsummary']['isProRating']))? $params['cartsummary']['isProRating'] : 0;
@@ -560,10 +656,15 @@ class PluginPaypal extends GatewayPlugin
                     //         https://developer.paypal.com/docs/classic/paypal-payments-standard/integration-guide/Appx_websitestandard_htmlvariables/
                     //             Allowable values for t1 and t3 are:
                     //                 D – for days;   allowable range for p1 and p3 is 1 to 90
+                    //                 W - for weeks;  allowable range for p1 and p3 is 1 to 52
                     //                 M – for months; allowable range for p1 and p3 is 1 to 24
                     //                 Y – for years;  allowable range for p1 and p3 is 1 to 5
-                    if ($params['plugin_paypal_API Secret'] != '' && !$params['invoiceProratingDays'] && $params['billingCycle'] > 0
-                      && ($params['billingCycle'] < 12 || in_array($params['billingCycle'], array(12, 24, 36, 48, 60)))) {
+                    // However, in the new API, for frequency_interval, value cannot be greater than 12 months.
+                    if ($params['plugin_paypal_API Secret'] != '' && !$params['invoiceProratingDays'] && $newBillingCycleObject->amount_of_units > 0
+                      && (($newBillingCycleObject->time_unit == 'd' && $newBillingCycleObject->amount_of_units <= 90)
+                       || ($newBillingCycleObject->time_unit == 'w' && $newBillingCycleObject->amount_of_units <= 52)
+                       || ($newBillingCycleObject->time_unit == 'm' && $newBillingCycleObject->amount_of_units <= 12)
+                       || ($newBillingCycleObject->time_unit == 'y' && $newBillingCycleObject->amount_of_units <= 1))) {
                         $subscriptionsUsed = true;
                     }
                 }
@@ -622,7 +723,9 @@ class PluginPaypal extends GatewayPlugin
                 $manuallyEnteredInvoice = false;
 
                 for ($i = 0; $i < count($invoiceEntriesBillingTypes); $i++) {
-                    if ($invoiceEntriesBillingTypes[$i] < 0 || $invoiceEntriesBillingCycles[$i] > 0) {
+                    $invoiceEntryBillingCycleObject = new BillingCycle($invoiceEntriesBillingCycles[$i]);
+
+                    if ($invoiceEntriesBillingTypes[$i] < 0 || $invoiceEntryBillingCycleObject->amount_of_units > 0) {
                         $nonRecurringInvoices = false;
                     }
 
@@ -636,6 +739,7 @@ class PluginPaypal extends GatewayPlugin
                 }
 
                 $params['billingCycle'] = $billingCycle;
+                $anotherBillingCycleObject = new BillingCycle($params['billingCycle']);
                 $params['usingRecurringPlugin'] = $useRecurringPlugin;
                 $params['invoicePackageUnproratedFee'] = $tempInvoice->getPackageUnproratedRecurringFee($billingCycle);
                 $params['plugin_paypal_API Secret'] = trim($this->settings->get('plugin_paypal_API Secret'));
@@ -649,10 +753,15 @@ class PluginPaypal extends GatewayPlugin
                     //         https://developer.paypal.com/docs/classic/paypal-payments-standard/integration-guide/Appx_websitestandard_htmlvariables/
                     //             Allowable values for t1 and t3 are:
                     //                 D – for days;   allowable range for p1 and p3 is 1 to 90
+                    //                 W - for weeks;  allowable range for p1 and p3 is 1 to 52
                     //                 M – for months; allowable range for p1 and p3 is 1 to 24
                     //                 Y – for years;  allowable range for p1 and p3 is 1 to 5
-                    if ($params['plugin_paypal_API Secret'] != '' && !$params['invoiceProratingDays'] && $params['billingCycle'] > 0
-                      && ($params['billingCycle'] < 12 || in_array($params['billingCycle'], array(12, 24, 36, 48, 60)))) {
+                    // However, in the new API, for frequency_interval, value cannot be greater than 12 months.
+                    if ($params['plugin_paypal_API Secret'] != '' && !$params['invoiceProratingDays'] && $anotherBillingCycleObject->amount_of_units > 0
+                      && (($anotherBillingCycleObject->time_unit == 'd' && $anotherBillingCycleObject->amount_of_units <= 90)
+                       || ($anotherBillingCycleObject->time_unit == 'w' && $anotherBillingCycleObject->amount_of_units <= 52)
+                       || ($anotherBillingCycleObject->time_unit == 'm' && $anotherBillingCycleObject->amount_of_units <= 12)
+                       || ($anotherBillingCycleObject->time_unit == 'y' && $anotherBillingCycleObject->amount_of_units <= 1))) {
                         $subscriptionsUsed = true;
                     }
                 }
@@ -796,7 +905,18 @@ class PluginPaypal extends GatewayPlugin
 
         //Cancel agreement
         //https://developer.paypal.com/docs/api/payments.billing-agreements/v1/#billing-agreements_cancel
-        $this->cancelAgreement($params, $access_token, $agreement_id);
+        $response = $this->cancelAgreement($params, $access_token, $agreement_id);
+
+        //If it has an invalid status, assume it was already canceled
+        if (isset($response['name']) && in_array($response['name'], array('STATUS_INVALID'))) {
+            $this->removeSubscriptionReference($agreement_id);
+            return;
+        }
+
+        //If "The profile ID is invalid" or "Merchant account is denied", try to cancel using the old API
+        if (isset($response['name']) && in_array($response['name'], array('INVALID_PROFILE_ID', 'MERCHANT_ACCOUNT_DENIED'))) {
+            return $this->oldAPIcancelSubscription($params);
+        }
 
         $agreement = array();
 
@@ -809,6 +929,7 @@ class PluginPaypal extends GatewayPlugin
         $tIsRecurring       = $customValues[1];
         $tGenerateInvoice   = $customValues[2];
         $tRecurringExclude  = '';
+
         if (isset($customValues[3])) {
             $tRecurringExclude = $customValues[3];
         }
@@ -886,7 +1007,7 @@ class PluginPaypal extends GatewayPlugin
                     $newInvoice = $cPlugin->retrieveInvoiceForTransaction($ppParentTransID);
 
                     if ($newInvoice && ($cPlugin->m_Invoice->isPaid() || $cPlugin->m_Invoice->isPartiallyPaid())) {
-                        $transaction = "Paypal payment of ".$params['invoiceTotal']." was refunded. Original Signup Invoice: ".$params['invoiceNumber']." (OrderID:".$refund['id'].")";
+                        $transaction = "Paypal payment of ".$params['invoiceTotal']." was refunded. Original Signup Invoice: ".$params['invoiceNumber']." (OrderID: ".$refund['id'].")";
                         $cPlugin->PaymentRefunded($params['invoiceTotal'], $transaction, $refund['id']);
                     } elseif (!$cPlugin->m_Invoice->isRefunded()) {
                         CE_Lib::log(1, 'Related invoice not found or not set as paid on the application, when doing the refund');
@@ -1037,12 +1158,31 @@ class PluginPaypal extends GatewayPlugin
             $tRecurringTotal = $params['invoicePackageUnproratedFee'];
         }
 
-        if ($params['billingCycle'] < 12) {
-            $initialPeriodLength = $params['billingCycle'];
-            $initialPeriodUnits = 'MONTH';
-        } elseif (in_array($params['billingCycle'], array(12, 24, 36, 48, 60))) {
-            $initialPeriodLength = round($params['billingCycle'] / 12);
-            $initialPeriodUnits = 'YEAR';
+        $billingCycleObject = new BillingCycle($params['billingCycle']);
+
+        switch ($billingCycleObject->time_unit) {
+            case 'd':
+                //DAY; allowable range is 1 to 90
+                $initialPeriodLength = $billingCycleObject->amount_of_units;
+                $initialPeriodUnits = 'DAY';
+                break;
+            case 'w':
+                //WEEK; allowable range is 1 to 52
+                $initialPeriodLength = $billingCycleObject->amount_of_units;
+                $initialPeriodUnits = 'WEEK';
+                break;
+            case 'm':
+                //MONTH; allowable range is 1 to 24
+                // However, in the new API, for frequency_interval, value cannot be greater than 12 months.
+                $initialPeriodLength = $billingCycleObject->amount_of_units;
+                $initialPeriodUnits = 'MONTH';
+                break;
+            case 'y':
+                //YEAR; allowable range is 1 to 5
+                // However, in the new API, for frequency_interval, value cannot be greater than 12 months.
+                $initialPeriodLength = $billingCycleObject->amount_of_units;
+                $initialPeriodUnits = 'YEAR';
+                break;
         }
 
         //As there is no 'custom' field, we will use the value as the name and description of the plan. Not sure if we will get it back that way.
@@ -1130,12 +1270,25 @@ class PluginPaypal extends GatewayPlugin
 
         //The start date must be no less than 24 hours after the current date as the agreement can take up to 24 hours to activate.
         //We are charging the first invoice amount as the setup_fee for the Plan, and the recurring charges will start on the next billing cycle, so start_date will be set to the next due date
-        if ($params['billingCycle'] < 12) {
-            $initialPeriodLength = $params['billingCycle'];
-            $initialPeriodUnits = 'months';
-        } elseif (in_array($params['billingCycle'], array(12, 24, 36, 48, 60))) {
-            $initialPeriodLength = round($params['billingCycle'] / 12);
-            $initialPeriodUnits = 'years';
+        $billingCycleObject = new BillingCycle($params['billingCycle']);
+
+        switch ($billingCycleObject->time_unit) {
+            case 'd':
+                $initialPeriodLength = $billingCycleObject->amount_of_units;
+                $initialPeriodUnits = 'days';
+                break;
+            case 'w':
+                $initialPeriodLength = $billingCycleObject->amount_of_units * 7;
+                $initialPeriodUnits = 'days';
+                break;
+            case 'm':
+                $initialPeriodLength = $billingCycleObject->amount_of_units;
+                $initialPeriodUnits = 'months';
+                break;
+            case 'y':
+                $initialPeriodLength = $billingCycleObject->amount_of_units;
+                $initialPeriodUnits = 'years';
+                break;
         }
 
         $start_date_iso_string = date('c', strtotime('+'.$initialPeriodLength.' '.$initialPeriodUnits));
@@ -1196,7 +1349,7 @@ class PluginPaypal extends GatewayPlugin
         $type = 'POST';
         $acceptHTTPcode = array(204);
 
-        $this->makeRequest($request, $header, $data, $type, $acceptHTTPcode);
+        return $this->makeRequest($request, $header, $data, $type, $acceptHTTPcode);
     }
 
     //NEW API CODE
@@ -1302,8 +1455,8 @@ class PluginPaypal extends GatewayPlugin
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
         // Turn off the server and peer verification (TrustManager Concept).
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, FALSE);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
 
         $response = curl_exec($ch);
 
