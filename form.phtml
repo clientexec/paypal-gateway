@@ -6,15 +6,19 @@
 
 <script src="https://www.paypalobjects.com/api/checkout.js"></script>
 <?php if ($this->from == 'signup') { ?>
-    <a style="margin-left:0px;cursor:pointer;" class="btn-success btn btn-lg customButton center-on-mobile <?php echo $pluginFolderName; ?>Button <?php if (@$this->termsConditions) {
+    <a class="app-btns primary customButton <?php echo $pluginFolderName; ?>Button <?php if (@$this->termsConditions) {
 ?>disabled<?php
-} ?>" id="customButton"></a>
+} ?>"></a>
 <?php } elseif ($this->from == 'invoice') { ?>
-    <button style="margin-left:0px;cursor:pointer;" class="pull-right btn btn-default btn-lg customButton <?php echo $pluginFolderName; ?>Button"><?php echo $this->user->lang('Pay Invoice'); ?></button>
+    <button class="app-btns primary customButton <?php echo $pluginFolderName; ?>Button"><?php echo $this->user->lang('Pay Invoice'); ?></button>
 <?php } ?>
 
-<div id="paypal-button-show-hide" style="display: none;">
+<div id="paypal-button-show-hide" class="d-none">
+    <?php if ($this->fromDirectLink) { ?>
+    <div id="paypal-button" style="margin: auto; width: 250px;"></div>
+    <?php } else { ?>
     <div id="paypal-button"></div>
+    <?php } ?>
 </div>
 
 <script data-cfasync="false" type="text/javascript">
@@ -81,15 +85,15 @@
     //            return actions.redirect();
             },
             onCancel: function (data, actions) {
-                $('#paypal-button-show-hide').hide();
-                $('.<?php echo $pluginFolderName; ?>Button').show();
+                $('#paypal-button-show-hide').addClass('d-none');
+                $('.<?php echo $pluginFolderName; ?>Button').removeClass('d-none');
                 //return actions.close();
                 //return actions.redirect();
             },
             onError: function (error) {
               // You will want to handle this differently
               //console.log(error);
-              RichHTML.error('<?php echo $this->user->lang("An internal service error has occurred in Paypal. Please try again");?>');
+              clientexec.error('<?php echo $this->user->lang("An internal service error has occurred in Paypal. Please try again");?>');
             }
         }, '#paypal-button');
 
@@ -102,24 +106,19 @@
             var password_validated = true;
 
             <?php if (!$this->loggedIn) { ?>
-                $('.parsley-error-list.help-block').parent().removeClass('has-error');
-                $('.parsley-error-list.help-block').remove();
+                $('#parsley-errors-list-password').remove();
                 e.preventDefault();
-
-                //let's validate remote data
                 if ($('#password').length > 0) {
-                    if ($.trim($('#password').val()) == "") return;
                     $.ajax({
                         type: "POST",
                         data: {"password": $('#password').val()},
                         url: 'index.php?controller=signup&fuse=admin&action=testpasswordstrength',
                         async: false,
                         success : function(response) {
-                            json = ce.parseResponse(response);
+                            json = clientexec.parseResponse(response);
                             if (!json.valid) {
                                 password_validated = false;
-                                $('#password').parent().addClass('has-error');
-                                $('#password').after('<span class="help-block parsley-error-list">'+json.errorMessage+'</span>');
+                                $('#password').after('<ul id="parsley-errors-list-password" class="parsley-errors-list filled" style="display: block;"><li class="parsley-required" style="display: list-item;">'+ json.errorMessage+'</li></ul>');
                                 $('#password').get(0).scrollIntoView();
                             }
                         }
@@ -127,16 +126,22 @@
                 }
             <?php } ?>
 
-            if (password_validated && $('#submitForm').parsley('validate')) {
+            $('#submitForm').parsley({
+                excluded: 'input[type=button], input[type=submit], input[type=reset], :hidden'
+            }).validate();
+            if (password_validated && $('#submitForm').parsley().isValid()) {
         <?php } ?>
 
-        $('.<?php echo $pluginFolderName; ?>Button').hide();
-        $('#paypal-button-show-hide').show();
+        $('.<?php echo $pluginFolderName; ?>Button').addClass('d-none');
+        $('#paypal-button-show-hide').removeClass('d-none');
 
         <?php if ($this->from == 'signup') { ?>
             }
         <?php } ?>
 
         e.preventDefault();
+    });
+    $( document ).ready(function() {
+        $('.<?php echo $pluginFolderName; ?>Button').click();
     });
 </script>

@@ -4,6 +4,7 @@ require_once 'modules/admin/models/StatusAliasGateway.php';
 require_once 'modules/billing/models/class.gateway.plugin.php';
 require_once 'modules/billing/models/Invoice_EventLog.php';
 require_once 'modules/admin/models/Error_EventLog.php';
+require_once 'modules/billing/models/BillingGateway.php';
 
 class PluginPaypalCallback extends PluginCallback
 {
@@ -29,10 +30,11 @@ class PluginPaypalCallback extends PluginCallback
         //NEW API CODE
         //Subscription
         if (isset($_REQUEST['newApi']) && $_REQUEST['newApi'] == 1) {
+            
             //Execute an agreement
             //https://developer.paypal.com/docs/subscriptions/integrate/integrate-steps/#5-execute-an-agreement
             if (isset($_REQUEST['token'])) {
-                $token = $_REQUEST["token"];
+                $token = $_REQUEST['token'];
 
                 $access_token = '';
                 $agreement = array();
@@ -165,13 +167,93 @@ class PluginPaypalCallback extends PluginCallback
                     //https://developer.paypal.com/docs/api/payments.billing-agreements/v1/#billing-agreements_get
                     $agreement = $this->showAgreementDetails($access_token, $subscriptionID);
 
-                    $customValues = explode("_", $agreement['description']);
-                    $tInvoiceID         = $customValues[0];
-                    $tIsRecurring       = $customValues[1];
-                    $tGenerateInvoice   = $customValues[2];
+                    $tIsRecurring       = 1;
+                    $tGenerateInvoice   = 1;
                     $tRecurringExclude  = '';
-                    if (isset($customValues[3])) {
-                        $tRecurringExclude = $customValues[3];
+
+                    if (isset($this->params) && isset($_REQUEST['redirected']) && $_REQUEST['redirected'] == 1) {
+                        $ppTransID = $response['resource']['id'];
+                        $cPlugin = new Plugin(0, 'paypal', $this->user);
+
+                        if ($cPlugin->TransExists($ppTransID)) {
+                            $newInvoice = $cPlugin->retrieveInvoiceForTransaction($ppTransID);
+
+                            if ($newInvoice) {
+                                $tInvoiceID = $cPlugin->m_Invoice->getId();
+                            }
+                        } else {
+                            //Search for existing invoice, unpaid and with same subscription id
+                            $newInvoice = $cPlugin->retrieveLastInvoiceForSubscription($agreement['id'], $ppTransID);
+
+                            if ($newInvoice) {
+                                $tInvoiceID = $cPlugin->m_Invoice->getId();
+                            } else {
+                                //get client id based on the subscription id of recurring fees
+                                $customerid = $cPlugin->retrieveUserdIdForSubscription($agreement['id']);
+
+                                $message = "There was a PayPal subscription payment for subscription ".$agreement['id'].".\n"
+                                    ."However, the system could not find any pending invoice for this subscription. The PayPal transaction id for the payment is ".$ppTransID.".\n"
+                                    ."Please take a look at the customer to confirm if this payment was required.\n"
+                                    ."If the payment was not required, please make sure to login to your PayPal account and refund the payment. If the subscription should no longer apply, please cancel the subscription in your PayPal account.\n"
+                                    ."\n"
+                                    ."Thanks.";
+
+                                if ($customerid !== false) {
+                                    //try to generate the customer invoices and search again
+                                    $billingGateway = new BillingGateway($this->user);
+                                    $billingGateway->processCustomerBilling($customerid, $agreement['id']);
+
+                                    //Search for existing invoice, unpaid and with same subscription id
+                                    $newInvoice = $cPlugin->retrieveLastInvoiceForSubscription($agreement['id'], $ppTransID);
+
+                                    if ($newInvoice) {
+                                        $tInvoiceID = $cPlugin->m_Invoice->getId();
+                                    } else {
+                                        if (isset($customerid)) {
+                                            // GENERATE TICKET
+                                            $tUser = new User($customerid);
+                                            $subject = 'Issue with paypal subscription payment';
+                                            $cPlugin->createTicket($agreement['id'], $subject, $message, $tUser);
+                                        } else {
+                                            CE_Lib::log(1, $message);
+                                        }
+
+                                        $errorLog = Error_EventLog::newInstance(
+                                            false,
+                                            (isset($customerid))? $customerid : 0,
+                                            $tInvoiceID,
+                                            ERROR_EVENTLOG_PAYPAL_CALLBACK,
+                                            NE_EVENTLOG_USER_SYSTEM,
+                                            serialize($this->_utf8EncodePaypalCallback($response))
+                                        );
+                                        $errorLog->save();
+                                        exit;
+                                    }
+                                } else {
+                                    CE_Lib::log(1, $message);
+
+                                    $errorLog = Error_EventLog::newInstance(
+                                        false,
+                                        0,
+                                        $tInvoiceID,
+                                        ERROR_EVENTLOG_PAYPAL_CALLBACK,
+                                        NE_EVENTLOG_USER_SYSTEM,
+                                        serialize($this->_utf8EncodePaypalCallback($response))
+                                    );
+                                    $errorLog->save();
+                                    exit;
+                                }
+                            }
+                        }
+                    } else {
+                        $customValues = explode("_", $agreement['description']);
+                        $tInvoiceID         = $customValues[0];
+                        $tIsRecurring       = $customValues[1];
+                        $tGenerateInvoice   = $customValues[2];
+
+                        if (isset($customValues[3])) {
+                            $tRecurringExclude = $customValues[3];
+                        }
                     }
 
                     if (!is_numeric($tInvoiceID)) {
@@ -252,7 +334,6 @@ class PluginPaypalCallback extends PluginCallback
                                         $customerid = $cPlugin->m_Invoice->getUserID();
 
                                         //try to generate the customer invoices and search again
-                                        include_once 'modules/billing/models/BillingGateway.php';
                                         $billingGateway = new BillingGateway($this->user);
                                         $billingGateway->processCustomerBilling($customerid, $agreement['id']);
 
@@ -691,7 +772,6 @@ class PluginPaypalCallback extends PluginCallback
                         $customerid = $cPlugin->m_Invoice->getUserID();
 
                         //try to generate the customer invoices and search again
-                        include_once 'modules/billing/models/BillingGateway.php';
                         $billingGateway = new BillingGateway($this->user);
                         $billingGateway->processCustomerBilling($customerid, $subscr_id);
 
@@ -1299,8 +1379,44 @@ class PluginPaypalCallback extends PluginCallback
                 $agreement = $this->showAgreementDetails($access_token, $subscriptionID);
 
                 // search the customer id based on the invoice id
-                $customValues = explode("_", $agreement['description']);
-                $tInvoiceID = $customValues[0];
+                if (isset($this->params) && isset($_REQUEST['redirected']) && $_REQUEST['redirected'] == 1) {
+                    $ppTransID = $response['resource']['id'];
+                    $cPlugin = new Plugin(0, 'paypal', $this->user);
+
+                    if ($cPlugin->TransExists($ppTransID)) {
+                        $newInvoice = $cPlugin->retrieveInvoiceForTransaction($ppTransID);
+
+                        if ($newInvoice) {
+                            $tInvoiceID = $cPlugin->m_Invoice->getId();
+                        }
+                    } else {
+                        //Search for existing invoice, unpaid and with same subscription id
+                        $newInvoice = $cPlugin->retrieveLastInvoiceForSubscription($agreement['id'], $ppTransID);
+
+                        if ($newInvoice) {
+                            $tInvoiceID = $cPlugin->m_Invoice->getId();
+                        } else {
+                            //get client id based on the subscription id of recurring fees
+                            $customerid = $cPlugin->retrieveUserdIdForSubscription($agreement['id']);
+
+                            if ($customerid !== false) {
+                                //try to generate the customer invoices and search again
+                                $billingGateway = new BillingGateway($this->user);
+                                $billingGateway->processCustomerBilling($customerid, $agreement['id']);
+
+                                //Search for existing invoice, unpaid and with same subscription id
+                                $newInvoice = $cPlugin->retrieveLastInvoiceForSubscription($agreement['id'], $ppTransID);
+
+                                if ($newInvoice) {
+                                    $tInvoiceID = $cPlugin->m_Invoice->getId();
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    $customValues = explode("_", $agreement['description']);
+                    $tInvoiceID = $customValues[0];
+                }
 
                 if (!is_numeric($tInvoiceID)) {
                     $tInvoiceID = '';

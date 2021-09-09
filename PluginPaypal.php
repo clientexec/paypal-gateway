@@ -144,11 +144,42 @@ class PluginPaypal extends GatewayPlugin
 
     function removeSubscriptionReference($subscription_id)
     {
-        $query = "UPDATE recurringfee SET subscription_id = '', disablegenerate = 0 WHERE subscription_id = ? ";
-        $this->db->query($query, $subscription_id);
+        $response = "%Started paypal subscription. Subscription ID: " . $subscription_id . "%";
+        $query = "SELECT `invoiceid` FROM `invoicetransaction` WHERE `response` LIKE ? ";
+        $result = $this->db->query($query, $response);
+        $row = $result->fetch();
 
-        $query2 = "UPDATE invoice SET subscription_id = '' WHERE status IN (0, 4) AND subscription_id = ? ";
-        $this->db->query($query2, $subscription_id);
+        if ($row) {
+            $tInvoiceID = $row['invoiceid'];
+            $tRecurringExclude = '';
+
+            // Create Plugin class object to interact with CE.
+            $cPlugin = new Plugin($tInvoiceID, 'paypal', $this->user);
+
+            CE_Lib::log(4, "Subscription has been cancelled.");
+            $tUser = new User($cPlugin->m_Invoice->m_UserID);
+
+            if (in_array($tUser->getStatus(), StatusAliasGateway::getInstance($this->user)->getUserStatusIdsFor(USER_STATUS_CANCELLED))) {
+                CE_Lib::log(4, 'User is already cancelled. Ignore callback.');
+            } else {
+                $subject = 'Gateway recurring payment cancelled';
+                $message = "Recurring payment for invoice $tInvoiceID has been cancelled.";
+                // If createTicket returns false it's because this transaction has already been done
+                if (!$cPlugin->createTicket($subscription_id, $subject, $message, $tUser)) {
+                    exit;
+                }
+            }
+
+            $transaction = "Paypal subscription cancelled. Original Signup Invoice: $tInvoiceID";
+            $old_processorid = '';
+            $cPlugin->resetRecurring($transaction, $subscription_id, $tRecurringExclude, $tInvoiceID, $old_processorid);
+        } else {
+            $query2 = "UPDATE recurringfee SET subscription_id = '', disablegenerate = 0 WHERE subscription_id = ? ";
+            $this->db->query($query2, $subscription_id);
+
+            $query3 = "UPDATE invoice SET subscription_id = '' WHERE status IN (0, 4) AND subscription_id = ? ";
+            $this->db->query($query3, $subscription_id);
+        }
     }
 
     function credit($params)
@@ -522,7 +553,18 @@ class PluginPaypal extends GatewayPlugin
         $callback->processCallback();
 
         //Need to check to see if user is coming from signup
-        if ($params['isSignup'] == 1) {
+        if ($params['fromDirectLink']) {
+            if ($success === true) {
+                $strMsg = $this->user->lang("Invoice(s) were processed successfully");
+            } else {
+                $strMsg = $this->user->lang("There was an error processing this invoice.");
+            }
+
+            $url = 'index.php';
+
+            CE_Lib::redirectPage($url, $strMsg);
+            exit;
+        } elseif ($params['isSignup'] == 1) {
             // Actually handle the signup URL setting
             if ($this->settings->get('Signup Completion URL') != '') {
                 if ($success === true) {
@@ -556,9 +598,9 @@ class PluginPaypal extends GatewayPlugin
         }
 
         if ($params['from'] == 'signup') {
-            $fakeForm = '<a style="margin-left:0px;cursor:pointer;" class="btn-success btn btn-lg customButton center-on-mobile '.((isset($params['termsConditions']) && $params['termsConditions'])? 'disabled' : '').'" onclick="cart.submit_form('.$params['loggedIn'].');"  id="submitButton"></a>';
+            $fakeForm = '<a style="margin-left:0px;cursor:pointer;" class="app-btns primary customButton" onclick="cart.submit_form('.$params['loggedIn'].');"  id="submitButton"></a>';
         } else {
-            $fakeForm = '<button style="margin-left:0px;cursor:pointer;" class="pull-right btn btn-lg btn-default" id="submitButton">'.$this->user->lang('Pay Invoice').'</button>';
+            $fakeForm = '<button class="app-btns primary" id="submitButton">'.$this->user->lang('Pay Invoice').'</button>';
         }
 
         //NEW API CODE
@@ -786,6 +828,7 @@ class PluginPaypal extends GatewayPlugin
 
                 $this->view->from = $params['from'];
                 $this->view->termsConditions = $params['termsConditions'];
+                $this->view->fromDirectLink = (isset($params['fromDirectLink']))? $params['fromDirectLink']: false;
 
                 CE_Lib::log(4, 'Paypal getForm singlepayment new API');
                 return $this->view->render('form.phtml');
