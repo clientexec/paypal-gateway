@@ -45,9 +45,9 @@ class PluginPaypal extends GatewayPlugin
                     1 => lang('Do not use subscriptions')
                 )
             ),
-            lang('Page Style') => array(
+            lang('Image URL') => array(
                 'type'        => 'text',
-                'description' => lang('Please enter the name of the page style you would like displayed'),
+                'description' => lang('Please enter the URL of the image you would like displayed. The recommended dimensions are 150 x 50 px. PayPal now consider the image as a logo to display in the upper left corner.'),
                 'value'       => ''
             ),
             lang('Separate Taxes') => array(
@@ -478,7 +478,7 @@ class PluginPaypal extends GatewayPlugin
         $strRet .= "<input type=hidden name=\"no_note\" value=\"1\">\n";
         $strRet .= "<input type=hidden name=\"bn\" value=\"Clientexec_SP\">\n";
         $strRet .= "<input type=hidden name=\"currency_code\" value=\"".$params["currencytype"]."\">\n";
-        $strRet .= "<input type=hidden name=\"page_style\" value=\"".$params["plugin_paypal_Page Style"]."\">\n";
+        $strRet .= "<input type=hidden name=\"image_url\" value=\"".$params["plugin_paypal_Image URL"]."\">\n";
         $strRet .= "<input type=hidden name=\"email\" value=\"".$params["userEmail"]."\">\n";
 
         //The next 2 fields are to get the phone number on the form for new customers. It was not working with just one of them
