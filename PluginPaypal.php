@@ -3,6 +3,7 @@ require_once 'modules/admin/models/GatewayPlugin.php';
 require_once 'modules/billing/models/class.gateway.plugin.php';
 require_once 'modules/billing/models/Currency.php';
 require_once 'modules/billing/models/BillingCycle.php';
+require_once 'modules/billing/models/Coupon.php';
 
 /**
 * @package Plugins
@@ -624,6 +625,17 @@ class PluginPaypal extends GatewayPlugin
                 $billingCycle = 0;
 
                 foreach ($params['cartsummary']['cartItems'] as $cartItem) {
+                    if ($cartItem['hasCoupon']) {
+                        $coupon = new Coupon($cartItem['appliedCouponId']);
+
+                        //monthly usage
+                        $monthlyusage = $coupon->recurringmonths;
+
+                        if (isset($monthlyusage) && is_numeric($monthlyusage) && $monthlyusage > 0) {
+                            $useRecurringPlugin = 0;
+                        }
+                    }
+
                     $billingCycleObject = new BillingCycle($cartItem['trueTerm']);
                     $periodLengthInDays = 0;
 
@@ -754,7 +766,8 @@ class PluginPaypal extends GatewayPlugin
                 // - the invoice is partialy paid
                 // - there are multiple invoice entries for the same item
                 // - the invoice entries have different period start
-                if ($useRecurringPlugin && ($tempInvoice->isPartiallyPaid() || $tempInvoice->isOverdue() || $tempInvoice->hasMultipleEntriesForSameItem() || !$tempInvoice->samePeriodStartAmongEntries())) {
+                // - it is an upgrade/downgrade invoice with invoice entries having different biling cycles
+                if ($useRecurringPlugin && ($tempInvoice->isPartiallyPaid() || $tempInvoice->isOverdue() || $tempInvoice->hasMultipleEntriesForSameItem() || !$tempInvoice->samePeriodStartAmongEntries() || ($tempInvoice->hasUpgradeDowngradeItems() && !$tempInvoice->sameCycleAmongEntries(true)))) {
                     $useRecurringPlugin = 0;
                 }
 
@@ -776,7 +789,7 @@ class PluginPaypal extends GatewayPlugin
                     }
                 }
 
-                if ((!$billingCycle = $tempInvoice->getRelatedPackageBillingCycle()) || $nonRecurringInvoices || $manuallyEnteredInvoice) {
+                if ((!$billingCycle = $tempInvoice->getRelatedPackageBillingCycle()) || $nonRecurringInvoices || $manuallyEnteredInvoice || $tempInvoice->hasUpgradeDowngradeItems()) {
                     $billingCycle = $invoiceBillingCycle;
                 }
 

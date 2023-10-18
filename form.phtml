@@ -45,12 +45,14 @@
                             amount: {
                                 value: '<?php echo sprintf("%01.2f", round($this->amount, 2)); ?>',
                                 currency_code: '<?php echo $this->currency;?>'
-                            }
+                            },
+                            description: '<?php echo $this->user->lang("Invoice")." #".$this->invoiceId;?>'
                         <?php } elseif ($this->from == 'signup') { ?>
                             amount: {
                                 value: Number(document.getElementById("totalPay_raw").value).toFixed(2),
                                 currency_code: '<?php echo $this->Currency;?>'
-                            }
+                            },
+                            description: '<?php echo $this->user->lang("New Order");?>'
                         <?php } ?>
                     }]
                 });
