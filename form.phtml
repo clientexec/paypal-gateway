@@ -12,7 +12,7 @@
     }
 ?>
 
-<script src="https://www.paypal.com/sdk/js?client-id=<?php echo $this->productionClientID; ?>&currency=<?php echo $this->paypalcurrency; ?>&intent=capture&commit=true&vault=false"></script>
+<script data-cfasync="false" src="https://www.paypal.com/sdk/js?client-id=<?php echo $this->productionClientID; ?>&currency=<?php echo $this->paypalcurrency; ?>&intent=capture&commit=true&vault=false"></script>
 
 <?php if ($this->from == 'signup') { ?>
     <a class="app-btns primary customButton <?php echo $pluginFolderName; ?>Button <?php if (@$this->termsConditions) {
@@ -83,7 +83,7 @@
             onError: function (error) {
               // You will want to handle this differently
               console.log(error);
-              clientexec.error('<?php echo $this->user->lang("An internal service error has occurred in Paypal. Please try again");?>');
+              clientexec.error("<?php echo $this->user->lang("An internal service error has occurred in Paypal. Please try again");?>");
             }
         }).render('#paypal-button');
 
