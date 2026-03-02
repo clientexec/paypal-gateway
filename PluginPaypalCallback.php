@@ -110,12 +110,17 @@ class PluginPaypalCallback extends PluginCallback
 
                         $subscriptionID = $response['resource']['id'];
                         break;
+                    case 'PAYMENT.CAPTURE.COMPLETED':
                     case 'PAYMENT.SALE.COMPLETED':
                     case 'PAYMENT.SALE.PENDING':
                     case 'PAYMENT.SALE.DENIED':
                         if (!isset($response['resource']['billing_agreement_id'])) {
                             if (!isset($response['resource']['id'])) {
-                                throw new CE_Exception('Paypal PAYMENT.SALE event has failed. "resource" => "id" is not defined');
+                                if (strtoupper($response['event_type']) == 'PAYMENT.CAPTURE.COMPLETED') {
+                                    throw new CE_Exception('Paypal PAYMENT.CAPTURE event has failed. "resource" => "id" is not defined');
+                                } else {
+                                    throw new CE_Exception('Paypal PAYMENT.SALE event has failed. "resource" => "id" is not defined');
+                                }
                             }
 
                             $cPlugin = new Plugin();
@@ -259,7 +264,7 @@ class PluginPaypalCallback extends PluginCallback
                     if (!is_numeric($tInvoiceID)) {
                         throw new CE_Exception('Paypal event has failed. Invoice was not found');
                     }
-                } else {
+                } elseif (strtoupper($response['event_type']) != 'PAYMENT.CAPTURE.COMPLETED') {
                     CE_Lib::log(4, 'Exiting Paypal callback invocation');
                     exit;
                 }
@@ -289,6 +294,50 @@ class PluginPaypalCallback extends PluginCallback
                         if ($set) {
                             $transaction = "Started paypal subscription. Subscription ID: ".$agreement['id'];
                             $cPlugin->logSubscriptionStarted($transaction, $agreement['id'].' '.$agreement['start_date']);
+                        }
+
+                        return;
+                        break;
+                    case 'PAYMENT.CAPTURE.COMPLETED':
+                        if (!isset($response['resource']['id'])) {
+                            throw new CE_Exception('Paypal PAYMENT.CAPTURE event has failed. "resource" => "id" is not defined');
+                        }
+                        if (!isset($response['resource']['status'])) {
+                            throw new CE_Exception('Paypal PAYMENT.CAPTURE event has failed. "resource" => "status" is not defined');
+                        }
+                        if (!isset($response['resource']['amount']['value'])) {
+                            throw new CE_Exception('Paypal PAYMENT.CAPTURE event has failed. "resource" => "amount" => "value" is not defined');
+                        }
+
+                        $ppTransID = $response['resource']['id'];
+                        $ppPayStatus = strtolower($response['resource']['status']);
+                        $ppPayAmount = $response['resource']['amount']['value'];
+
+                        //Add plugin details
+                        $cPlugin->setAmount($ppPayAmount);
+                        $cPlugin->m_TransactionID = $ppTransID;
+                        $cPlugin->m_Action = "charge";
+                        $cPlugin->m_Last4 = "NA";
+
+                        switch ($ppPayStatus) {
+                            case "completed": // The payment has been completed, and the funds have been added successfully to your account balance.
+                                $transaction = "Paypal payment of $ppPayAmount was accepted. Original Signup Invoice: $tInvoiceID (OrderID: ".$ppTransID.")";
+                                $cPlugin->PaymentAccepted($ppPayAmount, $transaction, $ppTransID, $testing);
+                                break;
+                            case "pending": // The payment is pending. See pending_reason for more information.
+                                $pendingReason = '';
+
+                                if (isset($response['resource']['pending_reason'])) {
+                                    $pendingReason = '. Reason: '.$response['resource']['pending_reason'];
+                                }
+
+                                $transaction = "Paypal payment of $ppPayAmount was marked 'pending' by Paypal".$pendingReason.". Original Signup Invoice: $tInvoiceID (OrderID: ".$ppTransID.")";
+                                $cPlugin->PaymentPending($transaction, $ppTransID);
+                                break;
+                            case "denied":  // The payment was denied.
+                                $transaction = "Paypal payment of $ppPayAmount was denied. Original Signup Invoice: $tInvoiceID (OrderID: ".$ppTransID.")";
+                                $cPlugin->PaymentRejected($transaction);
+                                break;
                         }
 
                         return;
@@ -1250,6 +1299,7 @@ class PluginPaypalCallback extends PluginCallback
 
             $allowedEventTypes = array(
                 'BILLING.SUBSCRIPTION.CREATED',
+                'PAYMENT.CAPTURE.COMPLETED',
                 'PAYMENT.SALE.COMPLETED',
                 'PAYMENT.SALE.PENDING',
                 'PAYMENT.SALE.DENIED',
@@ -1281,6 +1331,7 @@ class PluginPaypalCallback extends PluginCallback
 
                     $subscriptionID = $response['resource']['id'];
                     break;
+                case 'PAYMENT.CAPTURE.COMPLETED':
                 case 'PAYMENT.SALE.COMPLETED':
                 case 'PAYMENT.SALE.PENDING':
                 case 'PAYMENT.SALE.DENIED':

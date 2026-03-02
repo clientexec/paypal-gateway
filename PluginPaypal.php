@@ -178,7 +178,8 @@ class PluginPaypal extends GatewayPlugin
             $query2 = "UPDATE recurringfee SET subscription_id = '', disablegenerate = 0 WHERE subscription_id = ? ";
             $this->db->query($query2, $subscription_id);
 
-            $query3 = "UPDATE invoice SET subscription_id = '' WHERE status IN (0, 4) AND subscription_id = ? ";
+            //Clear Subscription id from Unpaid, Pending or Partially Paid invoices
+            $query3 = "UPDATE invoice SET subscription_id = '' WHERE status IN (0, 4, 5) AND subscription_id = ? ";
             $this->db->query($query3, $subscription_id);
         }
     }
