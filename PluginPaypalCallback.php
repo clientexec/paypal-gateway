@@ -483,16 +483,7 @@ class PluginPaypalCallback extends PluginCallback
                         return;
                         break;
                     case 'PAYMENT.SALE.REFUNDED':
-                        if (strtolower($response['resource']["state"]) == 'completed' && $response['resource']['sale_id'] == $transactionID) {
-                            // Create Plugin class object to interact with CE.
-                            $cPlugin = new Plugin($params['invoiceNumber'], 'paypal', $this->user);
-
-                            //Add plugin details
-                            $cPlugin->setAmount($params['invoiceTotal']);
-                            $cPlugin->m_TransactionID = $response['resource']['id'];
-                            $cPlugin->m_Action = "refund";
-                            $cPlugin->m_Last4 = "NA";
-
+                        if (strtolower($response['resource']["state"]) == 'completed') {
                             if (isset($response['resource']['sale_id'])) {
                                 $ppParentTransID = $response['resource']['sale_id'];
 
@@ -500,25 +491,32 @@ class PluginPaypalCallback extends PluginCallback
                                     $newInvoice = $cPlugin->retrieveInvoiceForTransaction($ppParentTransID);
 
                                     if ($newInvoice && ($cPlugin->m_Invoice->isPaid() || $cPlugin->m_Invoice->isPartiallyPaid())) {
-                                        $transaction = "Paypal payment of ".$params['invoiceTotal']." was refunded. Original Signup Invoice: ".$params['invoiceNumber']." (OrderID: ".$response['resource']['id'].")";
-                                        $cPlugin->PaymentRefunded($params['invoiceTotal'], $transaction, $response['resource']['id']);
+                                        //Add plugin details
+                                        $cPlugin->setAmount($response['resource']['total_refunded_amount']['value']);
+                                        $cPlugin->m_TransactionID = $response['resource']['id'];
+                                        $cPlugin->m_Action = "refund";
+                                        $cPlugin->m_Last4 = "NA";
+
+                                        $transaction = "Paypal payment of ".$response['resource']['total_refunded_amount']['value']." was refunded. Original Signup Invoice: ".$cPlugin->m_Invoice->getId()." (OrderID: ".$response['resource']['id'].")";
+                                        $cPlugin->PaymentRefunded($response['resource']['total_refunded_amount']['value'], $transaction, $response['resource']['id']);
+                                        return array('AMOUNT' => $response['resource']['total_refunded_amount']['value']);
                                     } elseif (!$cPlugin->m_Invoice->isRefunded()) {
                                         CE_Lib::log(1, 'Related invoice not found or not set as paid on the application, when doing the refund');
+                                        return 'Error with PayPal Refund';
                                     }
                                 } else {
                                     CE_Lib::log(1, 'Parent transaction id not matching any existing invoice on the application, when doing the refund');
+                                    return 'Error with PayPal Refund';
                                 }
                             } else {
-                                CE_Lib::log(1, 'Callback not returning parent_txn_id when refunding');
+                                CE_Lib::log(1, 'Callback not returning resource sale_id when refunding');
+                                return 'Error with PayPal Refund';
                             }
-
-                            return array('AMOUNT' => $params['invoiceTotal']);
                         } else {
                             CE_Lib::log(4, 'Error with PayPal Refund: ' . print_r($response, true));
                             return 'Error with PayPal Refund';
                         }
 
-                        return;
                         break;
                 }
                 exit;
@@ -696,7 +694,7 @@ class PluginPaypalCallback extends PluginCallback
         for ($retry = 1; $retry <= $maxRetries; $retry++) {
             $exit = false;
             $createTicket = false;
-            CE_Lib::log(4, "Requesting callback confirmation (attempt $retry of $maxRetries); sending request: $paypal_url?$req");
+            CE_Lib::log(4, "Requesting callback confirmation (attempt $retry of $maxRetries)");
             try {
                 $res = $this->_requestConfirmation($testing);
             } catch (Exception $e) {
