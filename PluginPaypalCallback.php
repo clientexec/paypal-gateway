@@ -1,4 +1,5 @@
 <?php
+
 require_once 'modules/admin/models/PluginCallback.php';
 require_once 'modules/admin/models/StatusAliasGateway.php';
 require_once 'modules/billing/models/class.gateway.plugin.php';
@@ -21,6 +22,11 @@ class PluginPaypalCallback extends PluginCallback
     {
         CE_Lib::log(4, 'Paypal callback invoked');
 
+        // Execute PluginCallback::processCallback() first
+        if (!parent::processCallback()) {
+            return;
+        }
+
         if (!isset($GLOBALS['testing'])) {
             $testing = false;
         } else {
@@ -30,7 +36,6 @@ class PluginPaypalCallback extends PluginCallback
         //NEW API CODE
         //Subscription
         if (isset($_REQUEST['newApi']) && $_REQUEST['newApi'] == 1) {
-            
             //Execute an agreement
             //https://developer.paypal.com/docs/subscriptions/integrate/integrate-steps/#5-execute-an-agreement
             if (isset($_REQUEST['token'])) {
@@ -65,28 +70,28 @@ class PluginPaypalCallback extends PluginCallback
 
                 //Lets mark the recurring fees as active subscription.
                 $cPlugin->setSubscriptionId($agreement['id'], $tRecurringExclude);
-                $transaction = "Started paypal subscription. Subscription ID: ".$agreement['id'];
-                $cPlugin->logSubscriptionStarted($transaction, $agreement['id'].' '.$agreement['start_date']);
+                $transaction = "Started paypal subscription. Subscription ID: " . $agreement['id'];
+                $cPlugin->logSubscriptionStarted($transaction, $agreement['id'] . ' ' . $agreement['start_date']);
 
                 $clientExecURL = CE_Lib::getSoftwareURL();
-                $invoiceviewURLSuccess = $clientExecURL."/index.php?fuse=billing&paid=1&controller=invoice&view=invoice&id=".$tInvoiceID;
-                $invoiceviewURLCancel = $clientExecURL."/index.php?fuse=billing&cancel=1&controller=invoice&view=invoice&id=".$tInvoiceID;
+                $invoiceviewURLSuccess = $clientExecURL . "/index.php?fuse=billing&paid=1&controller=invoice&view=invoice&id=" . $tInvoiceID;
+                $invoiceviewURLCancel = $clientExecURL . "/index.php?fuse=billing&cancel=1&controller=invoice&view=invoice&id=" . $tInvoiceID;
 
                 //Need to check to see if user is coming from signup
                 if (isset($_REQUEST['isSignup']) && $_REQUEST['isSignup'] == 1) {
                     if ($this->settings->get('Signup Completion URL') != '') {
-                        $return_url = $this->settings->get('Signup Completion URL').'?success=1';
+                        $return_url = $this->settings->get('Signup Completion URL') . '?success=1';
                         $cancel_url = $this->settings->get('Signup Completion URL');
                     } else {
-                        $return_url = $clientExecURL."/order.php?step=complete&pass=1";
-                        $cancel_url = $clientExecURL."/order.php?step=3";
+                        $return_url = $clientExecURL . "/order.php?step=complete&pass=1";
+                        $cancel_url = $clientExecURL . "/order.php?step=3";
                     }
                 } else {
                     $return_url = $invoiceviewURLSuccess;
                     $cancel_url = $invoiceviewURLCancel;
                 }
 
-                header('Location: '.$return_url);
+                header('Location: ' . $return_url);
                 exit;
             } else {
                 $response = file_get_contents("php://input");
@@ -196,12 +201,12 @@ class PluginPaypalCallback extends PluginCallback
                                 //get client id based on the subscription id of recurring fees
                                 $customerid = $cPlugin->retrieveUserdIdForSubscription($agreement['id']);
 
-                                $message = "There was a PayPal subscription payment for subscription ".$agreement['id'].".\n"
-                                    ."However, the system could not find any pending invoice for this subscription. The PayPal transaction id for the payment is ".$ppTransID.".\n"
-                                    ."Please take a look at the customer to confirm if this payment was required.\n"
-                                    ."If the payment was not required, please make sure to login to your PayPal account and refund the payment. If the subscription should no longer apply, please cancel the subscription in your PayPal account.\n"
-                                    ."\n"
-                                    ."Thanks.";
+                                $message = "There was a PayPal subscription payment for subscription " . $agreement['id'] . ".\n"
+                                    . "However, the system could not find any pending invoice for this subscription. The PayPal transaction id for the payment is " . $ppTransID . ".\n"
+                                    . "Please take a look at the customer to confirm if this payment was required.\n"
+                                    . "If the payment was not required, please make sure to login to your PayPal account and refund the payment. If the subscription should no longer apply, please cancel the subscription in your PayPal account.\n"
+                                    . "\n"
+                                    . "Thanks.";
 
                                 if ($customerid !== false) {
                                     //try to generate the customer invoices and search again
@@ -225,7 +230,7 @@ class PluginPaypalCallback extends PluginCallback
 
                                         $errorLog = Error_EventLog::newInstance(
                                             false,
-                                            (isset($customerid))? $customerid : 0,
+                                            (isset($customerid)) ? $customerid : 0,
                                             $tInvoiceID,
                                             ERROR_EVENTLOG_PAYPAL_CALLBACK,
                                             NE_EVENTLOG_USER_SYSTEM,
@@ -292,8 +297,8 @@ class PluginPaypalCallback extends PluginCallback
                         $set = $cPlugin->setSubscriptionId($agreement['id'], $tRecurringExclude);
 
                         if ($set) {
-                            $transaction = "Started paypal subscription. Subscription ID: ".$agreement['id'];
-                            $cPlugin->logSubscriptionStarted($transaction, $agreement['id'].' '.$agreement['start_date']);
+                            $transaction = "Started paypal subscription. Subscription ID: " . $agreement['id'];
+                            $cPlugin->logSubscriptionStarted($transaction, $agreement['id'] . ' ' . $agreement['start_date']);
                         }
 
                         return;
@@ -321,21 +326,21 @@ class PluginPaypalCallback extends PluginCallback
 
                         switch ($ppPayStatus) {
                             case "completed": // The payment has been completed, and the funds have been added successfully to your account balance.
-                                $transaction = "Paypal payment of $ppPayAmount was accepted. Original Signup Invoice: $tInvoiceID (OrderID: ".$ppTransID.")";
+                                $transaction = "Paypal payment of $ppPayAmount was accepted. Original Signup Invoice: $tInvoiceID (OrderID: " . $ppTransID . ")";
                                 $cPlugin->PaymentAccepted($ppPayAmount, $transaction, $ppTransID, $testing);
                                 break;
                             case "pending": // The payment is pending. See pending_reason for more information.
                                 $pendingReason = '';
 
                                 if (isset($response['resource']['pending_reason'])) {
-                                    $pendingReason = '. Reason: '.$response['resource']['pending_reason'];
+                                    $pendingReason = '. Reason: ' . $response['resource']['pending_reason'];
                                 }
 
-                                $transaction = "Paypal payment of $ppPayAmount was marked 'pending' by Paypal".$pendingReason.". Original Signup Invoice: $tInvoiceID (OrderID: ".$ppTransID.")";
+                                $transaction = "Paypal payment of $ppPayAmount was marked 'pending' by Paypal" . $pendingReason . ". Original Signup Invoice: $tInvoiceID (OrderID: " . $ppTransID . ")";
                                 $cPlugin->PaymentPending($transaction, $ppTransID);
                                 break;
                             case "denied":  // The payment was denied.
-                                $transaction = "Paypal payment of $ppPayAmount was denied. Original Signup Invoice: $tInvoiceID (OrderID: ".$ppTransID.")";
+                                $transaction = "Paypal payment of $ppPayAmount was denied. Original Signup Invoice: $tInvoiceID (OrderID: " . $ppTransID . ")";
                                 $cPlugin->PaymentRejected($transaction);
                                 break;
                         }
@@ -390,12 +395,12 @@ class PluginPaypalCallback extends PluginCallback
                                         $newInvoice = $cPlugin->retrieveLastInvoiceForSubscription($agreement['id'], $ppTransID);
 
                                         if ($newInvoice === false) {
-                                            $message = "There was a PayPal subscription payment for subscription ".$agreement['id'].".\n"
-                                                      ."However, the system could not find any pending invoice for this subscription. The PayPal transaction id for the payment is ".$ppTransID.".\n"
-                                                      ."Please take a look at the customer to confirm if this payment was required.\n"
-                                                      ."If the payment was not required, please make sure to login to your PayPal account and refund the payment. If the subscription should no longer apply, please cancel the subscription in your PayPal account.\n"
-                                                      ."\n"
-                                                      ."Thanks.";
+                                            $message = "There was a PayPal subscription payment for subscription " . $agreement['id'] . ".\n"
+                                                . "However, the system could not find any pending invoice for this subscription. The PayPal transaction id for the payment is " . $ppTransID . ".\n"
+                                                . "Please take a look at the customer to confirm if this payment was required.\n"
+                                                . "If the payment was not required, please make sure to login to your PayPal account and refund the payment. If the subscription should no longer apply, please cancel the subscription in your PayPal account.\n"
+                                                . "\n"
+                                                . "Thanks.";
                                             if (isset($customerid)) {
                                                 // GENERATE TICKET
                                                 $tUser = new User($customerid);
@@ -407,7 +412,7 @@ class PluginPaypalCallback extends PluginCallback
 
                                             $errorLog = Error_EventLog::newInstance(
                                                 false,
-                                                (isset($customerid))? $customerid : 0,
+                                                (isset($customerid)) ? $customerid : 0,
                                                 $tInvoiceID,
                                                 ERROR_EVENTLOG_PAYPAL_CALLBACK,
                                                 NE_EVENTLOG_USER_SYSTEM,
@@ -435,7 +440,7 @@ class PluginPaypalCallback extends PluginCallback
                                 case "completed": // The payment has been completed, and the funds have been added successfully to your account balance.
                                     //The subscription will be updated when getting the payment callback, to avoid a conflcik with the subscr_signup callback
                                     $cPlugin->setSubscriptionId($agreement['id'], $tRecurringExclude);
-                                    $transaction = "Paypal payment of $ppPayAmount was accepted. Original Signup Invoice: $tInvoiceID (OrderID: ".$ppTransID.")";
+                                    $transaction = "Paypal payment of $ppPayAmount was accepted. Original Signup Invoice: $tInvoiceID (OrderID: " . $ppTransID . ")";
                                     $cPlugin->PaymentAccepted($ppPayAmount, $transaction, $ppTransID, $testing);
                                     break;
                                 case "pending": // The payment is pending. See pending_reason for more information.
@@ -444,14 +449,14 @@ class PluginPaypalCallback extends PluginCallback
                                     $pendingReason = '';
 
                                     if (isset($response['resource']['pending_reason'])) {
-                                        $pendingReason = '. Reason: '.$response['resource']['pending_reason'];
+                                        $pendingReason = '. Reason: ' . $response['resource']['pending_reason'];
                                     }
 
-                                    $transaction = "Paypal payment of $ppPayAmount was marked 'pending' by Paypal".$pendingReason.". Original Signup Invoice: $tInvoiceID (OrderID: ".$ppTransID.")";
+                                    $transaction = "Paypal payment of $ppPayAmount was marked 'pending' by Paypal" . $pendingReason . ". Original Signup Invoice: $tInvoiceID (OrderID: " . $ppTransID . ")";
                                     $cPlugin->PaymentPending($transaction, $ppTransID);
                                     break;
                                 case "denied":  // The payment was denied.
-                                    $transaction = "Paypal payment of $ppPayAmount was denied. Original Signup Invoice: $tInvoiceID (OrderID: ".$ppTransID.")";
+                                    $transaction = "Paypal payment of $ppPayAmount was denied. Original Signup Invoice: $tInvoiceID (OrderID: " . $ppTransID . ")";
                                     $cPlugin->PaymentRejected($transaction);
                                     break;
                             }
@@ -497,7 +502,7 @@ class PluginPaypalCallback extends PluginCallback
                                         $cPlugin->m_Action = "refund";
                                         $cPlugin->m_Last4 = "NA";
 
-                                        $transaction = "Paypal payment of ".$response['resource']['total_refunded_amount']['value']." was refunded. Original Signup Invoice: ".$cPlugin->m_Invoice->getId()." (OrderID: ".$response['resource']['id'].")";
+                                        $transaction = "Paypal payment of " . $response['resource']['total_refunded_amount']['value'] . " was refunded. Original Signup Invoice: " . $cPlugin->m_Invoice->getId() . " (OrderID: " . $response['resource']['id'] . ")";
                                         $cPlugin->PaymentRefunded($response['resource']['total_refunded_amount']['value'], $transaction, $response['resource']['id']);
                                         return array('AMOUNT' => $response['resource']['total_refunded_amount']['value']);
                                     } elseif (!$cPlugin->m_Invoice->isRefunded()) {
@@ -533,55 +538,68 @@ class PluginPaypalCallback extends PluginCallback
             $invoiceId = $params['invoiceId'];
             $gatewayPlugin = new Plugin($invoiceId, $pluginFolderName, $this->user);
 
-            //If the gateway API provides a way to verify the response, make sure to verify it before performing any actions over the invoice.
-            $transactionVerified = true;
-            if (!$transactionVerified) {
+            //Make sure to get and assign the transaction id from the parameters returned from the gateway.
+            //This is a Paypal authorization id, not a capture id. The funds have not moved yet.
+            $transactionId = $params['transactionId'];
+
+            //Make sure to get and assign the type of transaction from the parameters returned from the gateway.
+            //Allowed values: charge, refund
+            $transactionAction = $params['transactionAction'];
+
+            //Verify the authorization directly with Paypal, then capture it, before trusting anything
+            //submitted from the client. This protects against a tampered or forged client-side response
+            //and ensures funds are only moved once the server has confirmed the authorization is valid.
+            if ($transactionAction == 'charge') {
+                if ($gatewayPlugin->TransExists($transactionId)) {
+                    $transaction = "Paypal transaction verification has failed. Transaction ID already used: " . $transactionId;
+                    CE_Lib::log(4, $transaction);
+                    $gatewayPlugin->PaymentRejected($transaction);
+                    exit;
+                }
+
+                $invoice = new Invoice($invoiceId);
+                $access_token = $this->getAnAccessToken();
+                $verifiedCapture = $this->verifyAndCaptureAuthorization($access_token, $transactionId, $invoice);
+            } else {
+                //REFUND NOT HANDLED YET
+                $verifiedCapture = false;
+            }
+
+            if (!$verifiedCapture) {
                 $transaction = "Paypal transaction verification has failed.";
                 $gatewayPlugin->PaymentRejected($transaction);
                 exit;
             }
 
-            //Make sure to get and assign the transaction id from the parameters returned from the gateway.
-            $transactionId = $params['transactionId'];
-            $gatewayPlugin->setTransactionID($transactionId);
-
-            //Make sure to get and assign the transaction amount from the parameters returned from the gateway.
-            $transactionAmount = $params['transactionAmount'];
-            $gatewayPlugin->setAmount($transactionAmount);
+            $gatewayPlugin->setTransactionID($verifiedCapture['captureId']);
+            $gatewayPlugin->setAmount($verifiedCapture['amount']);
 
             //Make sure to get and assign the credit card last four digits from the parameters returned from the gateway, or set it as 'NA' if not available.
             //Allowed values: 'NA', credit card last four digits
             $transactionLast4 = $params['transactionLast4'];
             $gatewayPlugin->setLast4($transactionLast4);
 
-            //Make sure to get and assign the type of transaction from the parameters returned from the gateway.
-            //Allowed values: charge, refund
-            $transactionAction = $params['transactionAction'];
             switch ($transactionAction) {
                 case 'charge':
                     $gatewayPlugin->setAction('charge');
 
-                    //Make sure to get and assign the transaction status from the parameters returned from the gateway.
-                    $transactionStatus = $params['transactionStatus'];
-
-                    //Make sure to replace the case values in the following switch, to match the status values returned from the gateway.
-                    switch ($transactionStatus) {
+                    switch ($verifiedCapture['status']) {
                         case 'completed':
-                            $transaction = "Paypal payment of $transactionAmount was accepted. Original Signup Invoice: $invoiceId (OrderID: ".$transactionId.")";
-                            $gatewayPlugin->PaymentAccepted($transactionAmount, $transaction, $transactionId);
+                            $transaction = "Paypal payment of " . $verifiedCapture['amount'] . " was accepted. Original Signup Invoice: $invoiceId (OrderID: " . $verifiedCapture['captureId'] . ")";
+                            $gatewayPlugin->PaymentAccepted($verifiedCapture['amount'], $transaction, $verifiedCapture['captureId']);
                             break;
                         case 'pending':
-                            $transaction = "Paypal payment of $transactionAmount was marked 'pending' by Paypal. Original Signup Invoice: $invoiceId (OrderID: ".$transactionId.")";
-                            $gatewayPlugin->PaymentPending($transaction, $transactionId);
+                            $transaction = "Paypal payment of " . $verifiedCapture['amount'] . " was marked 'pending' by Paypal. Original Signup Invoice: $invoiceId (OrderID: " . $verifiedCapture['captureId'] . ")";
+                            $gatewayPlugin->PaymentPending($transaction, $verifiedCapture['captureId']);
                             break;
-                        case 'denied':
-                            $transaction = "Paypal payment of $transactionAmount was rejected. Original Signup Invoice: $invoiceId (OrderID: ".$transactionId.")";
+                        default:
+                            $transaction = "Paypal payment of " . $verifiedCapture['amount'] . " was rejected. Original Signup Invoice: $invoiceId (OrderID: " . $verifiedCapture['captureId'] . ")";
                             $gatewayPlugin->PaymentRejected($transaction);
                             break;
                     }
                     break;
                 case 'refund':
-//REFUND NOT HANDLED YET
+                    //REFUND NOT HANDLED YET
                     break;
             }
             return;
@@ -592,6 +610,16 @@ class PluginPaypalCallback extends PluginCallback
 
         if ($this->settings->get('plugin_paypal_Use PayPal Sandbox') == '0' && isset($_POST['test_ipn']) && $_POST['test_ipn'] == '1') {
             CE_Lib::log(4, "** Paypal sandbox callback but account is in production mode => callback discarded");
+            return;
+        }
+
+        //Paypal sends an IPN for the authorization entity once an authorization is captured.
+        //Authorizations are only created by the new API single payment flow, which already verifies,
+        //captures and records the payment against the capture id. Processing this IPN would apply
+        //the same payment a second time under the authorization id.
+        if (isset($_POST['transaction_entity']) && mb_strtolower($_POST['transaction_entity']) == 'auth') {
+            $authId = isset($_POST['auth_id']) ? $_POST['auth_id'] : '';
+            CE_Lib::log(4, 'Paypal callback ignored: authorization entity notification. Authorization ID: ' . $authId);
             return;
         }
 
@@ -701,7 +729,7 @@ class PluginPaypalCallback extends PluginCallback
                 $customerid = $cPlugin->m_Invoice->getUserID();
                 $errorLog = Error_EventLog::newInstance(
                     false,
-                    (isset($customerid))? $customerid : 0,
+                    (isset($customerid)) ? $customerid : 0,
                     $tInvoiceID,
                     ERROR_EVENTLOG_PAYPAL_REQUEST_CONFIRMATION,
                     NE_EVENTLOG_USER_SYSTEM,
@@ -714,7 +742,7 @@ class PluginPaypalCallback extends PluginCallback
                 continue;
             }
 
-            CE_Lib::log(4, "Request Confirmation Returned (attempt $retry of $maxRetries): ".$res);
+            CE_Lib::log(4, "Request Confirmation Returned (attempt $retry of $maxRetries): " . $res);
             if (strpos($res, "VERIFIED") !== false) {
                 CE_Lib::log(4, "Callback has been verified successfully");
                 break;
@@ -727,7 +755,7 @@ class PluginPaypalCallback extends PluginCallback
                 $exit = true;
                 break;
             } else {
-                CE_Lib::log(1, "Callback not returning verification code of 'VERIFIED' or 'INVALID' (attempt $retry of $maxRetries). Original Paypal callback details: ".print_r($_POST, true));
+                CE_Lib::log(1, "Callback not returning verification code of 'VERIFIED' or 'INVALID' (attempt $retry of $maxRetries). Original Paypal callback details: " . print_r($_POST, true));
 
                 //return;
                 $createTicket = true;
@@ -738,16 +766,16 @@ class PluginPaypalCallback extends PluginCallback
             if ($createTicket) {
                 $customerid = $cPlugin->m_Invoice->getUserID();
                 $message = "There was a PayPal Callback not returning verification code of 'VERIFIED' or 'INVALID'. Attempted verification $maxRetries time(s).\n"
-                          ."\n"
-                          ."Original Paypal callback details:\n"
-                          .print_r($_POST, true)."\n"
-                          ."\n"
-                          ."When trying to verify, Paypal returned:\n"
-                          .$res."\n"
-                          ."\n"
-                          ."Please make sure to login to your PayPal account and verify the transaction by yourself. Also, you probably will need to take some manual actions over an invoice.\n"
-                          ."\n"
-                          ."Thanks.";
+                    . "\n"
+                    . "Original Paypal callback details:\n"
+                    . print_r($_POST, true) . "\n"
+                    . "\n"
+                    . "When trying to verify, Paypal returned:\n"
+                    . $res . "\n"
+                    . "\n"
+                    . "Please make sure to login to your PayPal account and verify the transaction by yourself. Also, you probably will need to take some manual actions over an invoice.\n"
+                    . "\n"
+                    . "Thanks.";
                 if (isset($customerid)) {
                     // GENERATE TICKET
                     $tUser = new User($customerid);
@@ -776,8 +804,8 @@ class PluginPaypalCallback extends PluginCallback
             //The subscription will be instead updated when getting the payment callback.
             //$cPlugin->setSubscriptionId($subscr_id, $tRecurringExclude);
 
-            $transaction = "Started paypal subscription. Subscription ID: ".$subscr_id;
-            $cPlugin->logSubscriptionStarted($transaction, $subscr_id.' '.$subscr_date);
+            $transaction = "Started paypal subscription. Subscription ID: " . $subscr_id;
+            $cPlugin->logSubscriptionStarted($transaction, $subscr_id . ' ' . $subscr_date);
 
             CE_Lib::log(4, 'Paypal subscr_signup callback ignored');
             return;
@@ -808,7 +836,7 @@ class PluginPaypalCallback extends PluginCallback
                         $newInvoice = $cPlugin->retrieveLastInvoiceForSubscription($_POST['old_subscr_id'], $ppTransID);
 
                         if ($newInvoice) {
-                            CE_Lib::log(4, 'The Subscription ID was changed from '.$_POST['old_subscr_id'].' to '.$subscr_id);
+                            CE_Lib::log(4, 'The Subscription ID was changed from ' . $_POST['old_subscr_id'] . ' to ' . $subscr_id);
 
                             //Update the invoice with the new subscription id
                             $cPlugin->setSubscriptionId($subscr_id, $tRecurringExclude);
@@ -826,12 +854,12 @@ class PluginPaypalCallback extends PluginCallback
                         $newInvoice = $cPlugin->retrieveLastInvoiceForSubscription($subscr_id, $ppTransID);
 
                         if ($newInvoice === false) {
-                            $message = "There was a PayPal subscription payment for subscription ".$subscr_id.".\n"
-                                      ."However, the system could not find any pending invoice for this subscription. The PayPal transaction id for the payment is ".$ppTransID.".\n"
-                                      ."Please take a look at the customer to confirm if this payment was required.\n"
-                                      ."If the payment was not required, please make sure to login to your PayPal account and refund the payment. If the subscription should no longer apply, please cancel the subscription in your PayPal account.\n"
-                                      ."\n"
-                                      ."Thanks.";
+                            $message = "There was a PayPal subscription payment for subscription " . $subscr_id . ".\n"
+                                . "However, the system could not find any pending invoice for this subscription. The PayPal transaction id for the payment is " . $ppTransID . ".\n"
+                                . "Please take a look at the customer to confirm if this payment was required.\n"
+                                . "If the payment was not required, please make sure to login to your PayPal account and refund the payment. If the subscription should no longer apply, please cancel the subscription in your PayPal account.\n"
+                                . "\n"
+                                . "Thanks.";
                             if (isset($customerid)) {
                                 // GENERATE TICKET
                                 $tUser = new User($customerid);
@@ -843,7 +871,7 @@ class PluginPaypalCallback extends PluginCallback
 
                             $errorLog = Error_EventLog::newInstance(
                                 false,
-                                (isset($customerid))? $customerid : 0,
+                                (isset($customerid)) ? $customerid : 0,
                                 $tInvoiceID,
                                 ERROR_EVENTLOG_PAYPAL_CALLBACK,
                                 NE_EVENTLOG_USER_SYSTEM,
@@ -867,7 +895,7 @@ class PluginPaypalCallback extends PluginCallback
                 $newInvoice = $cPlugin->retrieveLastInvoiceForSubscription($_POST['old_subscr_id'], $ppTransID, false);
 
                 if ($newInvoice) {
-                    CE_Lib::log(4, 'The Subscription ID was changed from '.$_POST['old_subscr_id'].' to '.$subscr_id);
+                    CE_Lib::log(4, 'The Subscription ID was changed from ' . $_POST['old_subscr_id'] . ' to ' . $subscr_id);
 
                     //Update the invoice with the new subscription id
                     $cPlugin->setSubscriptionId($subscr_id, $tRecurringExclude);
@@ -877,7 +905,7 @@ class PluginPaypalCallback extends PluginCallback
             if ($newInvoice === false) {
                 $errorLog = Error_EventLog::newInstance(
                     false,
-                    (isset($customerid))? $customerid : 0,
+                    (isset($customerid)) ? $customerid : 0,
                     $tInvoiceID,
                     ERROR_EVENTLOG_PAYPAL_CALLBACK,
                     NE_EVENTLOG_USER_SYSTEM,
@@ -906,17 +934,17 @@ class PluginPaypalCallback extends PluginCallback
                         case "Completed": // The payment has been completed, and the funds have been added successfully to your account balance.
                             //The subscription will be updated when getting the payment callback, to avoid a conflcik with the subscr_signup callback
                             $cPlugin->setSubscriptionId($subscr_id, $tRecurringExclude);
-                            $transaction = "Paypal payment of $ppPayAmount was accepted. Original Signup Invoice: $tInvoiceID (OrderID: ".$ppTransID.")";
+                            $transaction = "Paypal payment of $ppPayAmount was accepted. Original Signup Invoice: $tInvoiceID (OrderID: " . $ppTransID . ")";
                             $cPlugin->PaymentAccepted($ppPayAmount, $transaction, $ppTransID, $testing);
                             break;
                         case "Pending": // The payment is pending. See pending_reason for more information.
                             //The subscription will be updated when getting the payment callback, to avoid a conflcik with the subscr_signup callback
                             $cPlugin->setSubscriptionId($subscr_id, $tRecurringExclude);
-                            $transaction = "Paypal payment of $ppPayAmount was marked 'pending' by Paypal. Reason: ".$_POST['pending_reason'].". Original Signup Invoice: $tInvoiceID (OrderID: ".$ppTransID.")";
+                            $transaction = "Paypal payment of $ppPayAmount was marked 'pending' by Paypal. Reason: " . $_POST['pending_reason'] . ". Original Signup Invoice: $tInvoiceID (OrderID: " . $ppTransID . ")";
                             $cPlugin->PaymentPending($transaction, $ppTransID);
                             break;
-                        case "Failed":  // The payment has failed. This happens only if the payment was made from your customer�s bank account.
-                            $transaction = "Paypal payment of $ppPayAmount was rejected. Original Signup Invoice: $tInvoiceID (OrderID: ".$ppTransID.")";
+                        case "Failed":  // The payment has failed. This happens only if the payment was made from your customer's bank account.
+                            $transaction = "Paypal payment of $ppPayAmount was rejected. Original Signup Invoice: $tInvoiceID (OrderID: " . $ppTransID . ")";
                             $cPlugin->PaymentRejected($transaction);
                             break;
                     }
@@ -938,7 +966,7 @@ class PluginPaypalCallback extends PluginCallback
                         }
                     }
 
-                    $transaction = "Paypal subscription has expired. Original Signup Invoice: $tInvoiceID. Subscription ID: ".$subscr_id;
+                    $transaction = "Paypal subscription has expired. Original Signup Invoice: $tInvoiceID. Subscription ID: " . $subscr_id;
                     $old_processorid = '';
 
                     if (isset($_POST['old_subscr_id'])) {
@@ -976,7 +1004,7 @@ class PluginPaypalCallback extends PluginCallback
                 case 'subscr_failed': // Subscription signup failed
                     // this is caused by lack of funds for example
                     $subject = 'Gateway recurring payment failed';
-                    $reason = isset($_POST['pending_reason'])? $_POST['pending_reason'] : 'unknown';
+                    $reason = isset($_POST['pending_reason']) ? $_POST['pending_reason'] : 'unknown';
                     $message = "Recurring payment for invoice $tInvoiceID, corresponding to package \"{$_POST['item_name']}\" has failed.\n";
                     $message .= "Reason: $reason.";
                     $tUser = new User($cPlugin->m_Invoice->m_UserID);
@@ -986,7 +1014,7 @@ class PluginPaypalCallback extends PluginCallback
                     }
                     // log failed transaction
                     $transaction = "Recurring subscription payment failed. Reason: $reason.";
-                    $cPlugin->logFailedSubscriptionPayment($transaction, $subscr_id.' '.$subscr_date);
+                    $cPlugin->logFailedSubscriptionPayment($transaction, $subscr_id . ' ' . $subscr_date);
                     break;
             }
         } elseif ($ppTransType == 'refund' && $ppPayStatus == 'Refunded') {
@@ -1000,7 +1028,7 @@ class PluginPaypalCallback extends PluginCallback
                     $newInvoice = $cPlugin->retrieveInvoiceForTransaction($ppParentTransID);
 
                     if ($newInvoice && ($cPlugin->m_Invoice->isPaid() || $cPlugin->m_Invoice->isPartiallyPaid())) {
-                        $transaction = "Paypal payment of $ppPayAmount was refunded. Original Signup Invoice: $tInvoiceID (OrderID: ".$ppTransID.")";
+                        $transaction = "Paypal payment of $ppPayAmount was refunded. Original Signup Invoice: $tInvoiceID (OrderID: " . $ppTransID . ")";
                         $cPlugin->PaymentRefunded($ppPayAmount, $transaction, $ppTransID);
                     } elseif (!$cPlugin->m_Invoice->isRefunded()) {
                         CE_Lib::log(1, 'Related invoice not found or not set as paid on the application, when doing the refund');
@@ -1015,15 +1043,15 @@ class PluginPaypalCallback extends PluginCallback
             // Add Code for Normal Payment
             switch ($ppPayStatus) {
                 case "Completed":
-                    $transaction = "Paypal payment of $ppPayAmount was accepted. Original Signup Invoice: $tInvoiceID (OrderID: ".$ppTransID.")";
+                    $transaction = "Paypal payment of $ppPayAmount was accepted. Original Signup Invoice: $tInvoiceID (OrderID: " . $ppTransID . ")";
                     $cPlugin->PaymentAccepted($ppPayAmount, $transaction, $ppTransID, $testing);
                     break;
                 case "Pending":
-                    $transaction = "Paypal payment of $ppPayAmount was marked 'pending' by Paypal. Original Signup Invoice: $tInvoiceID (OrderID: ".$ppTransID.")";
+                    $transaction = "Paypal payment of $ppPayAmount was marked 'pending' by Paypal. Original Signup Invoice: $tInvoiceID (OrderID: " . $ppTransID . ")";
                     $cPlugin->PaymentPending($transaction, $ppTransID);
                     break;
                 case "Failed":
-                    $transaction = "Paypal payment of $ppPayAmount was rejected. Original Signup Invoice: $tInvoiceID (OrderID: ".$ppTransID.")";
+                    $transaction = "Paypal payment of $ppPayAmount was rejected. Original Signup Invoice: $tInvoiceID (OrderID: " . $ppTransID . ")";
                     $cPlugin->PaymentRejected($transaction);
                     break;
             }
@@ -1044,7 +1072,7 @@ class PluginPaypalCallback extends PluginCallback
         $header = array(
             'Accept: application/json',
             'Accept-Language: en_US',
-            'Authorization: Basic '.base64_encode($client_id.':'.$secret)
+            'Authorization: Basic ' . base64_encode($client_id . ':' . $secret)
         );
 
         $data = 'grant_type=client_credentials';
@@ -1066,11 +1094,11 @@ class PluginPaypalCallback extends PluginCallback
     //https://developer.paypal.com/docs/subscriptions/integrate/integrate-steps/#5-execute-an-agreement
     private function executeAnAgreement($access_token, $token)
     {
-        $request = 'payments/billing-agreements/'.$token.'/agreement-execute';
+        $request = 'payments/billing-agreements/' . $token . '/agreement-execute';
 
         $header = array(
             'Content-Type: application/json',
-            'Authorization: Bearer '.$access_token
+            'Authorization: Bearer ' . $access_token
         );
 
         $data = array(
@@ -1101,11 +1129,11 @@ class PluginPaypalCallback extends PluginCallback
     //https://developer.paypal.com/docs/api/payments.billing-agreements/v1/#billing-agreements_get
     private function showAgreementDetails($access_token, $subscriptionID)
     {
-        $request = 'payments/billing-agreements/'.$subscriptionID;
+        $request = 'payments/billing-agreements/' . $subscriptionID;
 
         $header = array(
             'Content-Type: application/json',
-            'Authorization: Bearer '.$access_token
+            'Authorization: Bearer ' . $access_token
         );
 
         $data = false;
@@ -1132,13 +1160,84 @@ class PluginPaypalCallback extends PluginCallback
     }
 
     //NEW API CODE
-    private function makeRequest($request, $header, $data = false, $type = 'POST', $acceptHTTPcode = false)
+    //Verify a Paypal order authorization against the invoice balance due, then capture it.
+    //Returns an array with the real capture id, status, and amount reported by Paypal, or false
+    //if the authorization could not be verified or the capture failed.
+    //https://developer.paypal.com/docs/api/payments/v2/#authorizations_get
+    //https://developer.paypal.com/docs/api/payments/v2/#authorizations_capture
+    private function verifyAndCaptureAuthorization($access_token, $authorizationId, $invoice)
+    {
+        $request = 'payments/authorizations/' . $authorizationId;
+
+        $header = array(
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $access_token
+        );
+
+        $data = false;
+        $type = 'GET';
+        $acceptHTTPcode = false;
+
+        $return = $this->makeRequest($request, $header, $data, $type, $acceptHTTPcode, 'v2');
+
+        if (!isset($return['id']) || !isset($return['status']) || !isset($return['amount']['value']) || !isset($return['amount']['currency_code'])) {
+            CE_Lib::log(4, 'Paypal verifyAndCaptureAuthorization has failed to retrieve the authorization. Response: ' . print_r($return, true));
+            return false;
+        }
+
+        if ($return['id'] !== $authorizationId) {
+            CE_Lib::log(4, 'Paypal verifyAndCaptureAuthorization has failed. Authorization id in response does not match the id being verified.');
+            return false;
+        }
+
+        if (strtoupper($return['status']) != 'CREATED') {
+            CE_Lib::log(4, 'Paypal verifyAndCaptureAuthorization has failed. Authorization status is ' . $return['status'] . ' instead of CREATED.');
+            return false;
+        }
+
+        $balanceDue = sprintf("%01.2f", round($invoice->getBalanceDue(), 2));
+        $authorizedAmount = sprintf("%01.2f", round($return['amount']['value'], 2));
+
+        if ($authorizedAmount != $balanceDue) {
+            CE_Lib::log(4, 'Paypal verifyAndCaptureAuthorization has failed. Authorized amount ' . $authorizedAmount . ' does not match invoice balance due ' . $balanceDue . '.');
+            return false;
+        }
+
+        //The authorization is valid and matches the invoice balance due. Capture the funds now.
+        $captureRequest = 'payments/authorizations/' . $authorizationId . '/capture';
+
+        $captureHeader = array(
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $access_token,
+            'Prefer: return=representation'
+        );
+
+        $captureData = json_encode(array(
+            'final_capture' => true
+        ));
+
+        $captureReturn = $this->makeRequest($captureRequest, $captureHeader, $captureData, 'POST', false, 'v2');
+
+        if (!isset($captureReturn['id']) || !isset($captureReturn['status']) || !isset($captureReturn['amount']['value'])) {
+            CE_Lib::log(4, 'Paypal verifyAndCaptureAuthorization has failed to capture the authorization. Response: ' . print_r($captureReturn, true));
+            return false;
+        }
+
+        return array(
+            'captureId' => $captureReturn['id'],
+            'status'    => strtolower($captureReturn['status']),
+            'amount'    => $captureReturn['amount']['value']
+        );
+    }
+
+    //NEW API CODE
+    private function makeRequest($request, $header, $data = false, $type = 'POST', $acceptHTTPcode = false, $apiVersion = 'v1')
     {
         $sandbox = '';
         if ($this->settings->get('plugin_paypal_Use PayPal Sandbox') == '1') {
             $sandbox = 'sandbox.';
         }
-        $url = 'https://api.'.$sandbox.'paypal.com/v1/'.$request;
+        $url = 'https://api.' . $sandbox . 'paypal.com/' . $apiVersion . '/' . $request;
 
         CE_Lib::log(4, 'Making request to: ' . $url);
         $ch = curl_init($url);
@@ -1162,9 +1261,10 @@ class PluginPaypalCallback extends PluginCallback
         curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
-        // Turn off the server and peer verification (TrustManager Concept).
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+        $caPathOrFile = \Composer\CaBundle\CaBundle::getSystemCaRootBundlePath();
+        curl_setopt($ch, is_dir($caPathOrFile) ? CURLOPT_CAPATH : CURLOPT_CAINFO, $caPathOrFile);
 
         $response = curl_exec($ch);
 
@@ -1173,7 +1273,7 @@ class PluginPaypalCallback extends PluginCallback
             CE_Lib::log(4, 'Paypal Response HTTP Code: ' . print_r($httpCode, true));
 
             if (!$acceptHTTPcode || !in_array($httpCode, $acceptHTTPcode)) {
-                throw new CE_Exception('cURL Paypal Error: '.curl_error($ch).' ('.curl_errno($ch).')');
+                throw new CE_Exception('cURL Paypal Error: ' . curl_error($ch) . ' (' . curl_errno($ch) . ')');
             }
         } else {
             $response = json_decode($response, true);
@@ -1473,8 +1573,8 @@ class PluginPaypalCallback extends PluginCallback
             }
 
             $query = "SELECT `customerid` "
-                    ."FROM `invoice` "
-                    ."WHERE `id` = ? ";
+                . "FROM `invoice` "
+                . "WHERE `id` = ? ";
             $result = $this->db->query($query, $tInvoiceID);
             list($customerid) = $result->fetch();
 
@@ -1486,8 +1586,8 @@ class PluginPaypalCallback extends PluginCallback
                 if ($subscriptionID !== '') {
                     // search the customer id based on the email address
                     $query = "SELECT `id` "
-                            ."FROM `users` "
-                            ."WHERE `email` = ? ";
+                        . "FROM `users` "
+                        . "WHERE `email` = ? ";
                     $result = $this->db->query($query, $agreement['payer']['payer_info']['email']);
                     list($customerid) = $result->fetch();
                 }
@@ -1496,7 +1596,7 @@ class PluginPaypalCallback extends PluginCallback
             if (!isset($customerid) || $invoiceNotFound) {
                 $errorLog = Error_EventLog::newInstance(
                     false,
-                    (isset($customerid))? $customerid : 0,
+                    (isset($customerid)) ? $customerid : 0,
                     $tInvoiceID,
                     ERROR_EVENTLOG_PAYPAL_CALLBACK,
                     NE_EVENTLOG_USER_SYSTEM,
@@ -1539,8 +1639,8 @@ class PluginPaypalCallback extends PluginCallback
         $tInvoiceID = $customValues[0];
 
         $query = "SELECT `customerid` "
-                ."FROM `invoice` "
-                ."WHERE `id` = ? ";
+            . "FROM `invoice` "
+            . "WHERE `id` = ? ";
         $result = $this->db->query($query, $tInvoiceID);
         list($customerid) = $result->fetch();
 
@@ -1551,8 +1651,8 @@ class PluginPaypalCallback extends PluginCallback
 
             // search the customer id based on the email address
             $query = "SELECT `id` "
-                    ."FROM `users` "
-                    ."WHERE `email` = ? ";
+                . "FROM `users` "
+                . "WHERE `email` = ? ";
             $result = $this->db->query($query, $_POST['payer_email']);
             list($customerid) = $result->fetch();
         }
@@ -1560,7 +1660,7 @@ class PluginPaypalCallback extends PluginCallback
         if (!isset($customerid) || $invoiceNotFound) {
             $errorLog = Error_EventLog::newInstance(
                 false,
-                (isset($customerid))? $customerid : 0,
+                (isset($customerid)) ? $customerid : 0,
                 $tInvoiceID,
                 ERROR_EVENTLOG_PAYPAL_CALLBACK,
                 NE_EVENTLOG_USER_SYSTEM,
